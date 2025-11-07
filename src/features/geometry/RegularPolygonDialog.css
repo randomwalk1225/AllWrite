@@ -1,0 +1,145 @@
+/* Polygon input box positioned at bottom-left */
+.polygon-input-box {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  background: #1e1e1e;
+  border: 1px solid #4ecdc4;
+  border-radius: 8px;
+  padding: 16px;
+  min-width: 280px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+.polygon-input-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.polygon-input-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #4ecdc4;
+}
+
+.polygon-close-button {
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  padding: 0;
+}
+
+.polygon-close-button:hover {
+  color: #ff6b6b;
+}
+
+.polygon-input-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.polygon-label {
+  font-size: 13px;
+  color: #aaa;
+  font-weight: 500;
+}
+
+.polygon-spinbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.polygon-spinbox-button {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(78, 205, 196, 0.1);
+  border: 1px solid #4ecdc4;
+  border-radius: 4px;
+  color: #4ecdc4;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.polygon-spinbox-button:hover:not(:disabled) {
+  background: rgba(78, 205, 196, 0.2);
+  transform: scale(1.05);
+}
+
+.polygon-spinbox-button:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.polygon-spinbox-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.polygon-spinbox-input {
+  flex: 1;
+  height: 32px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid #555;
+  border-radius: 4px;
+  color: #ccc;
+  padding: 4px;
+}
+
+.polygon-spinbox-input:focus {
+  outline: none;
+  border-color: #4ecdc4;
+  background: rgba(78, 205, 196, 0.05);
+}
+
+/* Hide spinners in number input */
+.polygon-spinbox-input::-webkit-inner-spin-button,
+.polygon-spinbox-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.polygon-spinbox-input[type=number] {
+  -moz-appearance: textfield;
+}
+
+.polygon-confirm-button {
+  width: 100%;
+  padding: 8px 16px;
+  background: rgba(78, 205, 196, 0.2);
+  color: #4ecdc4;
+  border: 1px solid #4ecdc4;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.polygon-confirm-button:hover {
+  background: rgba(78, 205, 196, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(78, 205, 196, 0.3);
+}
+
+.polygon-confirm-button:active {
+  transform: translateY(0);
+}

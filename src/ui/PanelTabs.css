@@ -1,0 +1,29 @@
+.panel-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.panel-tab {
+  flex: 1;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #333333;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.panel-tab:hover {
+  color: #000000;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.panel-tab.active {
+  color: #4ecdc4;
+  border-bottom-color: #4ecdc4;
+}

@@ -1,0 +1,112 @@
+/* Division point dialog positioned at bottom-left */
+.division-point-dialog {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  background: #1e1e1e;
+  border: 1px solid #4ecdc4;
+  border-radius: 8px;
+  padding: 16px;
+  min-width: 240px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  z-index: 999;
+}
+
+.division-point-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.division-point-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #4ecdc4;
+}
+
+.division-point-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ratio-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ratio-label {
+  font-size: 14px;
+  color: #aaa;
+  font-weight: 500;
+  width: 20px;
+}
+
+.ratio-spinbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.ratio-spinbox-button {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(78, 205, 196, 0.1);
+  border: 1px solid #4ecdc4;
+  border-radius: 4px;
+  color: #4ecdc4;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ratio-spinbox-button:hover:not(:disabled) {
+  background: rgba(78, 205, 196, 0.2);
+  transform: scale(1.05);
+}
+
+.ratio-spinbox-button:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.ratio-spinbox-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.ratio-spinbox-input {
+  flex: 1;
+  height: 32px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid #555;
+  border-radius: 4px;
+  color: #ccc;
+  padding: 4px;
+}
+
+.ratio-spinbox-input:focus {
+  outline: none;
+  border-color: #4ecdc4;
+  background: rgba(78, 205, 196, 0.05);
+}
+
+/* Hide spinners in number input */
+.ratio-spinbox-input::-webkit-inner-spin-button,
+.ratio-spinbox-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.ratio-spinbox-input[type=number] {
+  -moz-appearance: textfield;
+}

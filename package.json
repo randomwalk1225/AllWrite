@@ -1,0 +1,76 @@
+{
+  "name": "allwrite2",
+  "version": "2.0.0",
+  "description": "AllWrite 2.0 - Advanced math notebook with Krita-style brush engine, powerful graphing and visualization",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build && electron-builder",
+    "preview": "vite preview",
+    "electron:dev": "vite --port 5173",
+    "electron:build": "vite build && electron-builder"
+  },
+  "keywords": [
+    "electron",
+    "vite",
+    "react",
+    "math",
+    "graphing",
+    "notebook",
+    "visualization"
+  ],
+  "author": "AllWrite Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@typescript-eslint/eslint-plugin": "^6.14.0",
+    "@typescript-eslint/parser": "^6.14.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "eslint": "^8.55.0",
+    "prettier": "^3.1.1",
+    "typescript": "^5.2.2",
+    "vite": "^5.0.8",
+    "vite-plugin-electron": "^0.28.0",
+    "vitest": "^1.0.4",
+    "wait-on": "^7.2.0"
+  },
+  "dependencies": {
+    "@types/katex": "^0.16.7",
+    "algebrite": "^1.4.0",
+    "culori": "^4.0.1",
+    "html2canvas": "^1.4.1",
+    "immer": "^10.0.3",
+    "jspdf": "^3.0.3",
+    "katex": "^0.16.25",
+    "konva": "^10.0.8",
+    "mathjs": "^12.2.1",
+    "mathlive": "^0.107.1",
+    "perfect-freehand": "^1.2.2",
+    "react": "^18.2.0",
+    "react-colorful": "^5.6.1",
+    "react-dom": "^18.2.0",
+    "react-katex": "^3.0.1",
+    "react-konva": "^18.2.14",
+    "zustand": "^4.4.7"
+  },
+  "build": {
+    "appId": "com.allwrite2.app",
+    "productName": "AllWrite2",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    }
+  }
+}
