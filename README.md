@@ -82,12 +82,27 @@
 
 ## 📥 다운로드
 
-### Windows 설치 파일 (.exe)
+### 플랫폼별 다운로드
 
-1. **[Releases](../../releases)** 페이지로 이동
+**[Releases](https://github.com/randomwalk1225/AllWrite/releases)** 페이지에서 사용 중인 운영체제에 맞는 설치 파일을 다운로드하세요.
+
+#### 🪟 Windows
+
+1. **[Releases](https://github.com/randomwalk1225/AllWrite/releases)** 페이지로 이동
 2. 최신 버전의 **`AllWrite2-Setup-{version}.exe`** 다운로드
 3. 다운로드한 파일 실행하여 설치
 4. 설치 완료 후 바탕화면 또는 시작 메뉴에서 **AllWrite 2.0** 실행
+
+#### 🍎 macOS
+
+1. **[Releases](https://github.com/randomwalk1225/AllWrite/releases)** 페이지로 이동
+2. 최신 버전의 **`AllWrite2-{version}.dmg`** 다운로드
+3. DMG 파일을 열고 AllWrite2 아이콘을 Applications 폴더로 드래그
+4. Applications 폴더에서 **AllWrite 2.0** 실행
+
+> **참고**: macOS에서 "확인되지 않은 개발자" 경고가 나타날 경우:
+> 1. 시스템 설정 > 개인 정보 보호 및 보안 이동
+> 2. "확인 없이 열기" 버튼 클릭
 
 ## 🎯 사용 방법
 
@@ -184,7 +199,9 @@ npm run dev
 
 브라우저에서 `http://localhost:5173` 접속
 
-### Windows 실행 파일 빌드
+### 실행 파일 빌드
+
+#### Windows (.exe)
 
 ```bash
 # 프로덕션 빌드 및 설치 파일 생성
@@ -193,6 +210,17 @@ npm run build
 
 빌드 완료 후 `release/` 폴더에서 생성물 확인:
 - `AllWrite2-Setup-{version}.exe` - Windows 설치 파일
+
+#### macOS (.dmg)
+
+```bash
+# 프로덕션 빌드 및 설치 파일 생성 (macOS에서만 실행)
+npm run build
+```
+
+빌드 완료 후 `release/` 폴더에서 생성물 확인:
+- `AllWrite2-{version}.dmg` - macOS 설치 파일
+- `AllWrite2-{version}-mac.zip` - macOS 압축 파일
 
 ## 🔧 기술 스택
 
@@ -243,12 +271,15 @@ MIT License
 4. 브랜치에 Push (`git push origin feature/amazing-feature`)
 5. Pull Request 생성
 
-## 💬 지원
+## 💬 지원 및 문의
 
-질문, 이슈, 기능 요청은 GitHub Issues에 등록해주세요.
+- **이슈 및 기능 요청**: [GitHub Issues](https://github.com/randomwalk1225/AllWrite/issues)
+- **개발자 연락처**: Binary (randomwalk1225@gmail.com)
 
 ---
 
 **AllWrite 2.0** - 수학을 더 직관적으로, 더 재미있게! 🎓✨
 
 *점과 도형의 완벽한 동기화로 기하학의 아름다움을 경험하세요.*
+
+**개발자**: Binary (randomwalk1225@gmail.com)

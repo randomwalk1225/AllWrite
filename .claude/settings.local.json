@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nAdd multi-platform support and update documentation\n\n- Added macOS build configuration to package.json (dmg, zip)\n- Updated README.md with platform-specific download sections (Windows/Mac)\n- Added developer contact information (Binary - randomwalk1225@gmail.com)\n- Clarified build instructions for both Windows and macOS\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
     ],
     "deny": [],
     "ask": []
