@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import type { Expression, ViewState, ImageLayer } from '../types'
+import type { StabilizerConfig } from '../features/brush/BrushStabilizer'
 
 export type LabelDisplayMode = 'name-only' | 'coords-only' | 'both' | 'global'
 export type VisibilityMode = 'function-labels' | 'points-only' | 'point-labels' | 'labels-only'
@@ -36,11 +37,13 @@ interface DrawingStroke {
 export interface TextObject {
   id: string
   text: string
+  htmlContent?: string // Rich text HTML content (if present, use this instead of text)
   x: number // Graph x coordinate
   y: number // Graph y coordinate
   fontSize: number
   color: string
   selected?: boolean
+  maxWidth?: number // Maximum width for text wrapping
 }
 
 // Geometry object types
@@ -62,6 +65,12 @@ export type GeometryToolType =
   | 'circle-diameter'        // 지름으로 정의
   // Polygons
   | 'polygon-regular'        // 정다각형
+  | 'polygon-parallelogram'  // 평행사변형
+  | 'polygon-rhombus'        // 마름모
+  | 'polygon-rectangle'      // 직사각형
+  | 'polygon-square'         // 정사각형
+  | 'polygon-kite'           // 연
+  | 'polygon-right-triangle' // 직각삼각형
   // None
   | 'none'
   | 'select'
@@ -165,8 +174,8 @@ export interface Page {
 
 interface AppState {
   // Panel tabs
-  activePanelTab: 'expression' | 'geometry' | 'page'
-  setActivePanelTab: (tab: 'expression' | 'geometry' | 'page') => void
+  activePanelTab: 'expression' | 'geometry' | 'page' | 'brush'
+  setActivePanelTab: (tab: 'expression' | 'geometry' | 'page' | 'brush') => void
 
   // Expressions
   expressions: Expression[]
@@ -232,6 +241,8 @@ interface AppState {
   setEraserThickness: (thickness: number) => void
   colorHistory: string[]
   addToColorHistory: (color: string) => void
+  brushStabilizer: StabilizerConfig
+  setBrushStabilizer: (config: Partial<StabilizerConfig>) => void
 
   // Text objects
   textObjects: TextObject[]
@@ -321,7 +332,7 @@ export const PASTEL_COLORS = [
 export const useStore = create<AppState>()(
   immer((set) => ({
     // Initial state
-    activePanelTab: 'expression' as 'expression' | 'geometry' | 'page',
+    activePanelTab: 'expression' as 'expression' | 'geometry' | 'page' | 'brush',
 
     expressions: [
       {
@@ -359,6 +370,14 @@ export const useStore = create<AppState>()(
     highlighterThickness: 10,
     eraserThickness: 20,
     colorHistory: [],
+    brushStabilizer: {
+      mode: 'weighted',
+      queueSize: 10,
+      delayDistance: 10,
+      finishStabilizer: true,
+      stabilizeSensors: true,
+      zoomLevel: 1.0,
+    },
     geometryObjects: [],
     geometryTool: 'none',
     selectedIds: [],
@@ -871,6 +890,10 @@ export const useStore = create<AppState>()(
         // Move to front if already exists
         state.colorHistory = [color, ...state.colorHistory.filter(c => c !== color)]
       }
+    }),
+
+    setBrushStabilizer: (config) => set((state) => {
+      state.brushStabilizer = { ...state.brushStabilizer, ...config }
     }),
 
     // Geometry object actions

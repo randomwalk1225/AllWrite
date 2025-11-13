@@ -62,10 +62,14 @@ export function GeometryToolPanel() {
   }
 
   const getToolIcon = (type: GeometryObjectType, subType?: GeometryToolType): string => {
-    // Check for regular polygons first
-    if (subType === 'polygon-regular') {
-      return '⬟' // Generic regular polygon icon
-    }
+    // Check for polygon subtypes
+    if (subType === 'polygon-regular') return '⬟'
+    if (subType === 'polygon-parallelogram') return '▱'
+    if (subType === 'polygon-rhombus') return '◇'
+    if (subType === 'polygon-rectangle') return '▭'
+    if (subType === 'polygon-square') return '▢'
+    if (subType === 'polygon-kite') return '◆'
+    if (subType === 'polygon-right-triangle') return '◢'
 
     // Default icons
     switch (type) {
@@ -80,10 +84,14 @@ export function GeometryToolPanel() {
   }
 
   const getToolLabel = (type: GeometryObjectType, subType?: GeometryToolType): string => {
-    // Check for regular polygons first
-    if (subType === 'polygon-regular') {
-      return '정다각형'
-    }
+    // Check for polygon subtypes
+    if (subType === 'polygon-regular') return '정다각형'
+    if (subType === 'polygon-parallelogram') return '평행사변형'
+    if (subType === 'polygon-rhombus') return '마름모'
+    if (subType === 'polygon-rectangle') return '직사각형'
+    if (subType === 'polygon-square') return '정사각형'
+    if (subType === 'polygon-kite') return '연'
+    if (subType === 'polygon-right-triangle') return '직각삼각형'
 
     // Default labels
     switch (type) {
@@ -176,26 +184,60 @@ export function GeometryToolPanel() {
             <div className="category-header">다각형</div>
             <div className="submenu-list">
               <button
-                className={`submenu-item ${geometryTool === 'polygon' ? 'active' : ''}`}
-                onClick={handlePolygonClick}
-                title="다각형"
-              >
-                <span className="submenu-icon">▱</span>
-                <span className="submenu-label">다각형</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Regular Polygon tool */}
-          <div className="tool-category">
-            <div className="category-header">정다각형</div>
-            <div className="submenu-list">
-              <button
                 className={`submenu-item ${creationState.toolType === 'polygon-regular' ? 'active' : ''}`}
                 onClick={() => handleSubToolClick('polygon-regular')}
+                title="정다각형"
               >
                 <span className="submenu-icon">⬟</span>
                 <span className="submenu-label">정다각형</span>
+              </button>
+              <button
+                className={`submenu-item ${creationState.toolType === 'polygon-parallelogram' ? 'active' : ''}`}
+                onClick={() => handleSubToolClick('polygon-parallelogram')}
+                title="평행사변형"
+              >
+                <span className="submenu-icon">▱</span>
+                <span className="submenu-label">평행사변형</span>
+              </button>
+              <button
+                className={`submenu-item ${creationState.toolType === 'polygon-rhombus' ? 'active' : ''}`}
+                onClick={() => handleSubToolClick('polygon-rhombus')}
+                title="마름모"
+              >
+                <span className="submenu-icon">◇</span>
+                <span className="submenu-label">마름모</span>
+              </button>
+              <button
+                className={`submenu-item ${creationState.toolType === 'polygon-rectangle' ? 'active' : ''}`}
+                onClick={() => handleSubToolClick('polygon-rectangle')}
+                title="직사각형"
+              >
+                <span className="submenu-icon">▭</span>
+                <span className="submenu-label">직사각형</span>
+              </button>
+              <button
+                className={`submenu-item ${creationState.toolType === 'polygon-square' ? 'active' : ''}`}
+                onClick={() => handleSubToolClick('polygon-square')}
+                title="정사각형"
+              >
+                <span className="submenu-icon">▢</span>
+                <span className="submenu-label">정사각형</span>
+              </button>
+              <button
+                className={`submenu-item ${creationState.toolType === 'polygon-kite' ? 'active' : ''}`}
+                onClick={() => handleSubToolClick('polygon-kite')}
+                title="연"
+              >
+                <span className="submenu-icon">◆</span>
+                <span className="submenu-label">연</span>
+              </button>
+              <button
+                className={`submenu-item ${creationState.toolType === 'polygon-right-triangle' ? 'active' : ''}`}
+                onClick={() => handleSubToolClick('polygon-right-triangle')}
+                title="직각삼각형"
+              >
+                <span className="submenu-icon">◢</span>
+                <span className="submenu-label">직각삼각형</span>
               </button>
             </div>
           </div>

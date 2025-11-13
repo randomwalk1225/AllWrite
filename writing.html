@@ -33,6 +33,35 @@
       touch-action: none;
     }
 
+    /* Custom cursors for drawing tools */
+    #canvas.pen-cursor {
+      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><text x="0" y="20" font-size="20">✏️</text></svg>') 4 20, auto;
+    }
+
+    #canvas.highlighter-cursor {
+      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><text x="0" y="20" font-size="20">🖍️</text></svg>') 4 20, auto;
+    }
+
+    #canvas.arrow-cursor {
+      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><text x="0" y="20" font-size="20">➜</text></svg>') 4 12, auto;
+    }
+
+    #canvas.line-cursor {
+      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><text x="0" y="20" font-size="20">📏</text></svg>') 4 12, auto;
+    }
+
+    #canvas.rectangle-cursor {
+      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><text x="0" y="20" font-size="20">▢</text></svg>') 12 12, auto;
+    }
+
+    #canvas.eraser-cursor {
+      cursor: pointer;
+    }
+
+    #canvas.default-cursor {
+      cursor: default;
+    }
+
     .toolbar {
       position: fixed;
       top: 20px;

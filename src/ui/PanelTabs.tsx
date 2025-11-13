@@ -5,6 +5,9 @@ export function PanelTabs() {
   const activePanelTab = useStore((state) => state.activePanelTab)
   const setActivePanelTab = useStore((state) => state.setActivePanelTab)
 
+  // Temporarily hide brush tab - set to true to show again
+  const showBrushTab = false
+
   return (
     <div className="panel-tabs">
       <button
@@ -25,6 +28,12 @@ export function PanelTabs() {
       >
         페이지
       </button>
+      {showBrushTab && <button
+        className={`panel-tab ${activePanelTab === 'brush' ? 'active' : ''}`}
+        onClick={() => setActivePanelTab('brush')}
+      >
+        브러시
+      </button>}
     </div>
   )
 }

@@ -1165,9 +1165,8 @@ const KonvaDrawingLayerComponent = (
             const canvasPixel = graphToCanvasPixel(graphPoint.x, graphPoint.y);
 
             // Convert screen radius to canvas pixel radius
-            // Screen radius: eraserThickness / 2, reduced by 3px for better alignment
             // Screen 1px = canvas (PIXELS_PER_UNIT / view.scale) px
-            const canvasEraserRadius = ((eraserThickness / 2) - 3) * (PIXELS_PER_UNIT / view.scale);
+            const canvasEraserRadius = (eraserThickness / 2) * (PIXELS_PER_UNIT / view.scale);
 
             // Erase circular area
             ctx.globalCompositeOperation = "destination-out";
@@ -2454,31 +2453,93 @@ const KonvaDrawingLayerComponent = (
                 const dx = group.x();
                 const dy = group.y();
 
-                // Get original positions
+                // Move the endpoint nodes visually to follow the line during drag
+                const point1Node = layerRef.current?.findOne(`#${obj.linePoints!.point1Id}`);
+                const point2Node = layerRef.current?.findOne(`#${obj.linePoints!.point2Id}`);
+
                 const origP1 = group.getAttr('_origP1');
                 const origP2 = group.getAttr('_origP2');
-                if (!origP1 || !origP2) return;
 
-                // Convert drag offset to graph coordinates
-                const offsetStart = screenToGraph(0, 0, width, height, view);
-                const offsetEnd = screenToGraph(dx, dy, width, height, view);
-                const graphDx = offsetEnd.x - offsetStart.x;
-                const graphDy = offsetEnd.y - offsetStart.y;
+                if (point1Node && origP1) {
+                  const origP1Screen = graphToScreen(origP1.x, origP1.y, width, height, view);
+                  point1Node.position({ x: origP1Screen.x + dx, y: origP1Screen.y + dy });
+                }
 
-                // Update the two points that define this line in real-time
-                // Use ORIGINAL position + offset
-                const newP1 = { x: origP1.x + graphDx, y: origP1.y + graphDy };
-                const newP2 = { x: origP2.x + graphDx, y: origP2.y + graphDy };
+                if (point2Node && origP2) {
+                  const origP2Screen = graphToScreen(origP2.x, origP2.y, width, height, view);
+                  point2Node.position({ x: origP2Screen.x + dx, y: origP2Screen.y + dy });
+                }
 
-                updateGeometryObject(obj.linePoints!.point1Id, {
-                  points: [newP1],
-                });
-                updateGeometryObject(obj.linePoints!.point2Id, {
-                  points: [newP2],
+                // Move midpoint nodes visually as well
+                geometryObjects.forEach((midpoint) => {
+                  if (
+                    midpoint.subType === "point-midpoint" &&
+                    midpoint.dependencies &&
+                    midpoint.dependencies.includes(obj.linePoints!.point1Id) &&
+                    midpoint.dependencies.includes(obj.linePoints!.point2Id)
+                  ) {
+                    const midpointNode = layerRef.current?.findOne(`#${midpoint.id}`);
+                    if (midpointNode && midpoint.points[0]) {
+                      const origMidScreen = graphToScreen(midpoint.points[0].x, midpoint.points[0].y, width, height, view);
+                      midpointNode.position({ x: origMidScreen.x + dx, y: origMidScreen.y + dy });
+                    }
+                  }
                 });
               }}
               onDragEnd={(e) => {
                 const group = e.target;
+                const dx = group.x();
+                const dy = group.y();
+
+                // Get original positions
+                const origP1 = group.getAttr('_origP1');
+                const origP2 = group.getAttr('_origP2');
+
+                if (origP1 && origP2) {
+                  // Convert drag offset to graph coordinates
+                  const offsetStart = screenToGraph(0, 0, width, height, view);
+                  const offsetEnd = screenToGraph(dx, dy, width, height, view);
+                  const graphDx = offsetEnd.x - offsetStart.x;
+                  const graphDy = offsetEnd.y - offsetStart.y;
+
+                  // Calculate final positions
+                  const newP1 = { x: origP1.x + graphDx, y: origP1.y + graphDy };
+                  const newP2 = { x: origP2.x + graphDx, y: origP2.y + graphDy };
+
+                  // Update the two points that define this line
+                  updateGeometryObject(obj.linePoints!.point1Id, {
+                    points: [newP1],
+                  });
+                  updateGeometryObject(obj.linePoints!.point2Id, {
+                    points: [newP2],
+                  });
+
+                  // Update midpoint(s) if they exist
+                  geometryObjects.forEach((midpoint) => {
+                    if (
+                      midpoint.subType === "point-midpoint" &&
+                      midpoint.dependencies &&
+                      midpoint.dependencies.includes(obj.linePoints!.point1Id) &&
+                      midpoint.dependencies.includes(obj.linePoints!.point2Id)
+                    ) {
+                      // Get ratio (default to 1:1 midpoint if not specified)
+                      const ratio = midpoint.ratio || { m: 1, n: 1 };
+
+                      // Calculate division point using formula: (n*P1 + m*P2) / (m+n)
+                      const divX =
+                        (ratio.n * newP1.x + ratio.m * newP2.x) /
+                        (ratio.m + ratio.n);
+                      const divY =
+                        (ratio.n * newP1.y + ratio.m * newP2.y) /
+                        (ratio.m + ratio.n);
+
+                      updateGeometryObject(midpoint.id, {
+                        points: [{ x: divX, y: divY }],
+                      });
+                    }
+                  });
+                }
+
                 // Clean up stored attributes
                 group.setAttr('_origP1', null);
                 group.setAttr('_origP2', null);
@@ -2587,6 +2648,7 @@ const KonvaDrawingLayerComponent = (
 
                 // Get original points
                 const origPoints = node.getAttr('_origPoints');
+                const origDeps = node.getAttr('_origDeps');
                 if (!origPoints) return;
 
                 // Convert the drag offset from screen to graph coordinates
@@ -2595,229 +2657,24 @@ const KonvaDrawingLayerComponent = (
                 const graphDx = offsetEnd.x - offsetStart.x;
                 const graphDy = offsetEnd.y - offsetStart.y;
 
-                // Update all points by the offset (using ORIGINAL points)
-                const newPoints = origPoints.map((p: GeometryPoint) => ({
-                  x: p.x + graphDx,
-                  y: p.y + graphDy,
-                }));
+                // Update dependency point nodes visually only (don't call updateGeometryObject)
+                if (origDeps && obj.dependencies && obj.dependencies.length > 0) {
+                  obj.dependencies.forEach(depId => {
+                    const origDepPoint = origDeps[depId];
+                    if (origDepPoint) {
+                      const newDepGraphPos = {
+                        x: origDepPoint.x + graphDx,
+                        y: origDepPoint.y + graphDy,
+                      };
 
-                // DON'T update the polygon itself during drag - only at the end
-                // This prevents double movement (Konva drag + state update)
-
-                // Handle regular polygons differently
-                if (
-                  obj.subType === "polygon-regular" &&
-                  obj.dependencies &&
-                  obj.dependencies.length >= 2
-                ) {
-                  const [centerPointId, radiusPointId] = obj.dependencies;
-
-                  // Calculate new center from moved vertices
-                  const newCenter = {
-                    x:
-                      newPoints.reduce((sum, p) => sum + p.x, 0) /
-                      newPoints.length,
-                    y:
-                      newPoints.reduce((sum, p) => sum + p.y, 0) /
-                      newPoints.length,
-                  };
-
-                  // Calculate new radius point position (first vertex)
-                  const newRadius = {
-                    x: newPoints[0].x,
-                    y: newPoints[0].y,
-                  };
-
-                  // Update center point
-                  updateGeometryObject(centerPointId, {
-                    points: [newCenter],
-                  });
-
-                  // Update radius point
-                  updateGeometryObject(radiusPointId, {
-                    points: [newRadius],
-                  });
-
-                  // Update dependents of center and radius points (e.g., division points)
-                  const centerPoint = geometryObjects.find(
-                    (o) => o.id === centerPointId,
-                  );
-                  const radiusPoint = geometryObjects.find(
-                    (o) => o.id === radiusPointId,
-                  );
-
-                  // Update dependents of center point
-                  if (
-                    centerPoint?.dependents &&
-                    centerPoint.dependents.length > 0
-                  ) {
-                    centerPoint.dependents.forEach((dependentId) => {
-                      const dependent = geometryObjects.find(
-                        (o) => o.id === dependentId,
-                      );
-                      if (!dependent) return;
-
-                      // Update division points
-                      if (
-                        dependent.subType === "point-midpoint" &&
-                        dependent.dependencies
-                      ) {
-                        const dep1 = geometryObjects.find(
-                          (o) => o.id === dependent.dependencies![0],
-                        );
-                        const dep2 = geometryObjects.find(
-                          (o) => o.id === dependent.dependencies![1],
-                        );
-
-                        if (dep1 && dep2 && dep1.points[0] && dep2.points[0]) {
-                          const point1 =
-                            dep1.id === centerPointId
-                              ? newCenter
-                              : dep1.points[0];
-                          const point2 =
-                            dep2.id === centerPointId
-                              ? newCenter
-                              : dep2.points[0];
-
-                          // Get ratio (default to 1:1 midpoint if not specified)
-                          const ratio = dependent.ratio || { m: 1, n: 1 };
-
-                          // Calculate division point using formula: (n*P1 + m*P2) / (m+n)
-                          const divX =
-                            (ratio.n * point1.x + ratio.m * point2.x) /
-                            (ratio.m + ratio.n);
-                          const divY =
-                            (ratio.n * point1.y + ratio.m * point2.y) /
-                            (ratio.m + ratio.n);
-
-                          updateGeometryObject(dependentId, {
-                            points: [{ x: divX, y: divY }],
-                          });
-                        }
-                      }
-                    });
-                  }
-
-                  // Update dependents of radius point
-                  if (
-                    radiusPoint?.dependents &&
-                    radiusPoint.dependents.length > 0
-                  ) {
-                    radiusPoint.dependents.forEach((dependentId) => {
-                      const dependent = geometryObjects.find(
-                        (o) => o.id === dependentId,
-                      );
-                      if (!dependent) return;
-
-                      // Update division points
-                      if (
-                        dependent.subType === "point-midpoint" &&
-                        dependent.dependencies
-                      ) {
-                        const dep1 = geometryObjects.find(
-                          (o) => o.id === dependent.dependencies![0],
-                        );
-                        const dep2 = geometryObjects.find(
-                          (o) => o.id === dependent.dependencies![1],
-                        );
-
-                        if (dep1 && dep2 && dep1.points[0] && dep2.points[0]) {
-                          const point1 =
-                            dep1.id === radiusPointId
-                              ? newRadius
-                              : dep1.points[0];
-                          const point2 =
-                            dep2.id === radiusPointId
-                              ? newRadius
-                              : dep2.points[0];
-
-                          // Get ratio (default to 1:1 midpoint if not specified)
-                          const ratio = dependent.ratio || { m: 1, n: 1 };
-
-                          // Calculate division point using formula: (n*P1 + m*P2) / (m+n)
-                          const divX =
-                            (ratio.n * point1.x + ratio.m * point2.x) /
-                            (ratio.m + ratio.n);
-                          const divY =
-                            (ratio.n * point1.y + ratio.m * point2.y) /
-                            (ratio.m + ratio.n);
-
-                          updateGeometryObject(dependentId, {
-                            points: [{ x: divX, y: divY }],
-                          });
-                        }
-                      }
-                    });
-                  }
-                }
-                // Update dependent points (vertices) in real-time for regular polygons
-                else if (obj.dependencies && obj.dependencies.length > 0) {
-                  obj.dependencies.forEach((depId, index) => {
-                    if (index < newPoints.length) {
-                      const depPoint = geometryObjects.find(
-                        (o) => o.id === depId,
-                      );
-                      if (depPoint && depPoint.type === "point") {
-                        updateGeometryObject(depId, {
-                          points: [newPoints[index]],
-                        });
-
-                        // Update dependents of this vertex in real-time (e.g., division points)
-                        if (
-                          depPoint.dependents &&
-                          depPoint.dependents.length > 0
-                        ) {
-                          depPoint.dependents.forEach((dependentId) => {
-                            const dependent = geometryObjects.find(
-                              (o) => o.id === dependentId,
-                            );
-                            if (!dependent) return;
-
-                            // Update division points
-                            if (
-                              dependent.subType === "point-midpoint" &&
-                              dependent.dependencies
-                            ) {
-                              const dep1 = geometryObjects.find(
-                                (o) => o.id === dependent.dependencies![0],
-                              );
-                              const dep2 = geometryObjects.find(
-                                (o) => o.id === dependent.dependencies![1],
-                              );
-
-                              if (
-                                dep1 &&
-                                dep2 &&
-                                dep1.points[0] &&
-                                dep2.points[0]
-                              ) {
-                                const point1 =
-                                  dep1.id === depId
-                                    ? newPoints[index]
-                                    : dep1.points[0];
-                                const point2 =
-                                  dep2.id === depId
-                                    ? newPoints[index]
-                                    : dep2.points[0];
-
-                                // Get ratio (default to 1:1 midpoint if not specified)
-                                const ratio = dependent.ratio || { m: 1, n: 1 };
-
-                                // Calculate division point using formula: (n*P1 + m*P2) / (m+n)
-                                const divX =
-                                  (ratio.n * point1.x + ratio.m * point2.x) /
-                                  (ratio.m + ratio.n);
-                                const divY =
-                                  (ratio.n * point1.y + ratio.m * point2.y) /
-                                  (ratio.m + ratio.n);
-
-                                updateGeometryObject(dependentId, {
-                                  points: [{ x: divX, y: divY }],
-                                });
-                              }
-                            }
-                          });
-                        }
+                      // Update node visual position only
+                      const depNode = layerRef.current?.findOne(`#${depId}`);
+                      if (depNode) {
+                        const newDepScreen = graphToScreen(newDepGraphPos.x, newDepGraphPos.y, width, height, view);
+                        depNode.position({ x: newDepScreen.x, y: newDepScreen.y });
+                        // Reset scale to prevent scaling issues
+                        depNode.scaleX(1);
+                        depNode.scaleY(1);
                       }
                     }
                   });
@@ -2828,14 +2685,30 @@ const KonvaDrawingLayerComponent = (
                 const dx = node.x();
                 const dy = node.y();
 
-                // Get original points
+                // Get original points and dependencies
                 const origPoints = node.getAttr('_origPoints');
+                const origDeps = node.getAttr('_origDeps');
+
                 if (origPoints) {
                   // Convert the final drag offset from screen to graph coordinates
                   const offsetStart = screenToGraph(0, 0, width, height, view);
                   const offsetEnd = screenToGraph(dx, dy, width, height, view);
                   const graphDx = offsetEnd.x - offsetStart.x;
                   const graphDy = offsetEnd.y - offsetStart.y;
+
+                  // Update dependency points first
+                  if (origDeps && obj.dependencies && obj.dependencies.length > 0) {
+                    obj.dependencies.forEach(depId => {
+                      const origDepPoint = origDeps[depId];
+                      if (origDepPoint) {
+                        const newDepPoint = {
+                          x: origDepPoint.x + graphDx,
+                          y: origDepPoint.y + graphDy,
+                        };
+                        updateGeometryObject(depId, { points: [newDepPoint] });
+                      }
+                    });
+                  }
 
                   // Calculate final points
                   const finalPoints = origPoints.map((p: GeometryPoint) => ({
@@ -3217,6 +3090,8 @@ const KonvaDrawingLayerComponent = (
 
                 // Get original positions
                 const origCenter = group.getAttr('_origCenter');
+                const origDeps = group.getAttr('_origDeps');
+
                 if (!origCenter) return;
 
                 // Convert drag offset to graph coordinates
@@ -3225,9 +3100,47 @@ const KonvaDrawingLayerComponent = (
                 const graphDx = offsetEnd.x - offsetStart.x;
                 const graphDy = offsetEnd.y - offsetStart.y;
 
-                // Only update dependencies in real-time
-                // Don't update the circle itself to avoid double calculation
+                // Update dependency point nodes visually (don't call updateGeometryObject)
+                if (origDeps && obj.dependencies && obj.dependencies.length > 0) {
+                  obj.dependencies.forEach(depId => {
+                    const origDepPoint = origDeps[depId];
+                    if (origDepPoint) {
+                      const newDepGraphPos = {
+                        x: origDepPoint.x + graphDx,
+                        y: origDepPoint.y + graphDy,
+                      };
+
+                      // Update node visual position only
+                      const depNode = layerRef.current?.findOne(`#${depId}`);
+                      if (depNode) {
+                        const newDepScreen = graphToScreen(newDepGraphPos.x, newDepGraphPos.y, width, height, view);
+                        depNode.position({ x: newDepScreen.x, y: newDepScreen.y });
+                        // Reset scale to prevent scaling issues
+                        depNode.scaleX(1);
+                        depNode.scaleY(1);
+                      }
+                    }
+                  });
+                }
+              }}
+              onDragEnd={(e) => {
+                const group = e.target;
+                const dx = group.x() - centerScreen.x;
+                const dy = group.y() - centerScreen.y;
+
+                // Get original positions
+                const origCenter = group.getAttr('_origCenter');
                 const origDeps = group.getAttr('_origDeps');
+
+                if (!origCenter) return;
+
+                // Convert drag offset to graph coordinates
+                const offsetStart = screenToGraph(0, 0, width, height, view);
+                const offsetEnd = screenToGraph(dx, dy, width, height, view);
+                const graphDx = offsetEnd.x - offsetStart.x;
+                const graphDy = offsetEnd.y - offsetStart.y;
+
+                // Update dependency points
                 if (origDeps && obj.dependencies && obj.dependencies.length > 0) {
                   obj.dependencies.forEach(depId => {
                     const origDepPoint = origDeps[depId];
@@ -3240,21 +3153,6 @@ const KonvaDrawingLayerComponent = (
                     }
                   });
                 }
-              }}
-              onDragEnd={(e) => {
-                const group = e.target;
-                const dx = group.x() - centerScreen.x;
-                const dy = group.y() - centerScreen.y;
-
-                // Get original positions
-                const origCenter = group.getAttr('_origCenter');
-                if (!origCenter) return;
-
-                // Convert drag offset to graph coordinates
-                const offsetStart = screenToGraph(0, 0, width, height, view);
-                const offsetEnd = screenToGraph(dx, dy, width, height, view);
-                const graphDx = offsetEnd.x - offsetStart.x;
-                const graphDy = offsetEnd.y - offsetStart.y;
 
                 // Update the circle's center point at drag end
                 const newCenter = {
@@ -3262,6 +3160,9 @@ const KonvaDrawingLayerComponent = (
                   y: origCenter.y + graphDy,
                 };
                 updateGeometryObject(obj.id, { points: [newCenter] });
+
+                // Reset group position
+                group.position({ x: 0, y: 0 });
 
                 // Clean up stored attributes
                 group.setAttr('_origCenter', null);
@@ -3474,13 +3375,14 @@ const KonvaDrawingLayerComponent = (
                 stroke={shapeRenderMode === 'fill' ? undefined : obj.color}
                 strokeWidth={shapeRenderMode === 'fill' ? 0 : (isSelected ? 6 : 4)}
                 fill={shapeRenderMode === 'stroke' ? undefined : (obj.fillColor || PASTEL_COLORS[geometryObjects.filter(o => o.type === 'polygon' || o.type === 'circle').indexOf(obj) % PASTEL_COLORS.length])}
-                fillOpacity={shapeRenderMode === 'stroke' ? 0 : 0.6}
+                fillOpacity={shapeRenderMode === 'stroke' ? 0 : 0.3}
                 opacity={isSelected ? 1 : 0.8}
                 listening={
                   !isLassoSelecting &&
                   (drawingTool === "select" || drawingTool === "eraser")
                 }
                 hitStrokeWidth={20}
+                perfectDrawEnabled={false}
                 globalCompositeOperation={shapeRenderMode === 'stroke' ? 'source-over' : 'multiply'}
                 onClick={(e) => {
                   if (drawingTool === "select" && !isLassoSelecting) {
@@ -3788,6 +3690,253 @@ const KonvaDrawingLayerComponent = (
                   <Line
                     key="preview-regular-polygon"
                     points={vertices}
+                    stroke="#ABD5B1"
+                    strokeWidth={4}
+                    opacity={0.7}
+                    closed={true}
+                    listening={false}
+                  />
+                </>
+              );
+            } else if (creationState.toolType === "polygon-rectangle") {
+              // Rectangle preview
+              const vertices = [
+                startPos.x, startPos.y,
+                endPos.x, startPos.y,
+                endPos.x, endPos.y,
+                startPos.x, endPos.y,
+              ];
+              const screenVertices = [];
+              for (let i = 0; i < vertices.length; i += 2) {
+                const screen = graphToScreen(vertices[i], vertices[i + 1], width, height, view);
+                screenVertices.push(screen.x, screen.y);
+              }
+
+              return (
+                <>
+                  <Line
+                    key="preview-rectangle-fill"
+                    points={screenVertices}
+                    fill="#ABD5B1"
+                    fillOpacity={0.2}
+                    closed={true}
+                    listening={false}
+                  />
+                  <Line
+                    key="preview-rectangle"
+                    points={screenVertices}
+                    stroke="#ABD5B1"
+                    strokeWidth={4}
+                    opacity={0.7}
+                    closed={true}
+                    listening={false}
+                  />
+                </>
+              );
+            } else if (creationState.toolType === "polygon-square") {
+              // Square preview
+              const dx = endPos.x - startPos.x;
+              const dy = endPos.y - startPos.y;
+              const perpX = -dy;
+              const perpY = dx;
+
+              const vertices = [
+                startPos.x, startPos.y,
+                endPos.x, endPos.y,
+                endPos.x + perpX, endPos.y + perpY,
+                startPos.x + perpX, startPos.y + perpY,
+              ];
+              const screenVertices = [];
+              for (let i = 0; i < vertices.length; i += 2) {
+                const screen = graphToScreen(vertices[i], vertices[i + 1], width, height, view);
+                screenVertices.push(screen.x, screen.y);
+              }
+
+              return (
+                <>
+                  <Line
+                    key="preview-square-fill"
+                    points={screenVertices}
+                    fill="#ABD5B1"
+                    fillOpacity={0.2}
+                    closed={true}
+                    listening={false}
+                  />
+                  <Line
+                    key="preview-square"
+                    points={screenVertices}
+                    stroke="#ABD5B1"
+                    strokeWidth={4}
+                    opacity={0.7}
+                    closed={true}
+                    listening={false}
+                  />
+                </>
+              );
+            } else if (creationState.toolType === "polygon-parallelogram") {
+              // Parallelogram preview
+              const dx = endPos.x - startPos.x;
+              const dy = endPos.y - startPos.y;
+              const angle = Math.PI / 3; // 60 degrees
+              const offsetX = dx * Math.cos(angle) - dy * Math.sin(angle);
+              const offsetY = dx * Math.sin(angle) + dy * Math.cos(angle);
+
+              const vertices = [
+                startPos.x, startPos.y,
+                endPos.x, endPos.y,
+                endPos.x + offsetX, endPos.y + offsetY,
+                startPos.x + offsetX, startPos.y + offsetY,
+              ];
+              const screenVertices = [];
+              for (let i = 0; i < vertices.length; i += 2) {
+                const screen = graphToScreen(vertices[i], vertices[i + 1], width, height, view);
+                screenVertices.push(screen.x, screen.y);
+              }
+
+              return (
+                <>
+                  <Line
+                    key="preview-parallelogram-fill"
+                    points={screenVertices}
+                    fill="#ABD5B1"
+                    fillOpacity={0.2}
+                    closed={true}
+                    listening={false}
+                  />
+                  <Line
+                    key="preview-parallelogram"
+                    points={screenVertices}
+                    stroke="#ABD5B1"
+                    strokeWidth={4}
+                    opacity={0.7}
+                    closed={true}
+                    listening={false}
+                  />
+                </>
+              );
+            } else if (creationState.toolType === "polygon-rhombus") {
+              // Rhombus preview
+              const centerX = (startPos.x + endPos.x) / 2;
+              const centerY = (startPos.y + endPos.y) / 2;
+              const diag1Length = Math.sqrt(
+                Math.pow(endPos.x - startPos.x, 2) + Math.pow(endPos.y - startPos.y, 2)
+              );
+              const angle = Math.atan2(endPos.y - startPos.y, endPos.x - startPos.x);
+              const perpAngle = angle + Math.PI / 2;
+              const diag2HalfLength = diag1Length / 4;
+
+              const p3x = centerX + diag2HalfLength * Math.cos(perpAngle);
+              const p3y = centerY + diag2HalfLength * Math.sin(perpAngle);
+              const p4x = centerX - diag2HalfLength * Math.cos(perpAngle);
+              const p4y = centerY - diag2HalfLength * Math.sin(perpAngle);
+
+              const vertices = [
+                startPos.x, startPos.y,
+                p3x, p3y,
+                endPos.x, endPos.y,
+                p4x, p4y,
+              ];
+              const screenVertices = [];
+              for (let i = 0; i < vertices.length; i += 2) {
+                const screen = graphToScreen(vertices[i], vertices[i + 1], width, height, view);
+                screenVertices.push(screen.x, screen.y);
+              }
+
+              return (
+                <>
+                  <Line
+                    key="preview-rhombus-fill"
+                    points={screenVertices}
+                    fill="#ABD5B1"
+                    fillOpacity={0.2}
+                    closed={true}
+                    listening={false}
+                  />
+                  <Line
+                    key="preview-rhombus"
+                    points={screenVertices}
+                    stroke="#ABD5B1"
+                    strokeWidth={4}
+                    opacity={0.7}
+                    closed={true}
+                    listening={false}
+                  />
+                </>
+              );
+            } else if (creationState.toolType === "polygon-kite") {
+              // Kite preview
+              const dx = endPos.x - startPos.x;
+              const dy = endPos.y - startPos.y;
+              const length = Math.sqrt(dx * dx + dy * dy);
+              const perpX = -dy / length * length * 0.3;
+              const perpY = dx / length * length * 0.3;
+              const wing1X = startPos.x + dx * 0.3;
+              const wing1Y = startPos.y + dy * 0.3;
+
+              const vertices = [
+                startPos.x, startPos.y,
+                wing1X + perpX, wing1Y + perpY,
+                endPos.x, endPos.y,
+                wing1X - perpX, wing1Y - perpY,
+              ];
+              const screenVertices = [];
+              for (let i = 0; i < vertices.length; i += 2) {
+                const screen = graphToScreen(vertices[i], vertices[i + 1], width, height, view);
+                screenVertices.push(screen.x, screen.y);
+              }
+
+              return (
+                <>
+                  <Line
+                    key="preview-kite-fill"
+                    points={screenVertices}
+                    fill="#ABD5B1"
+                    fillOpacity={0.2}
+                    closed={true}
+                    listening={false}
+                  />
+                  <Line
+                    key="preview-kite"
+                    points={screenVertices}
+                    stroke="#ABD5B1"
+                    strokeWidth={4}
+                    opacity={0.7}
+                    closed={true}
+                    listening={false}
+                  />
+                </>
+              );
+            } else if (creationState.toolType === "polygon-right-triangle") {
+              // Right triangle preview
+              const dx = endPos.x - startPos.x;
+              const dy = endPos.y - startPos.y;
+              const p3x = startPos.x - dy;
+              const p3y = startPos.y + dx;
+
+              const vertices = [
+                startPos.x, startPos.y,
+                endPos.x, endPos.y,
+                p3x, p3y,
+              ];
+              const screenVertices = [];
+              for (let i = 0; i < vertices.length; i += 2) {
+                const screen = graphToScreen(vertices[i], vertices[i + 1], width, height, view);
+                screenVertices.push(screen.x, screen.y);
+              }
+
+              return (
+                <>
+                  <Line
+                    key="preview-right-triangle-fill"
+                    points={screenVertices}
+                    fill="#ABD5B1"
+                    fillOpacity={0.2}
+                    closed={true}
+                    listening={false}
+                  />
+                  <Line
+                    key="preview-right-triangle"
+                    points={screenVertices}
                     stroke="#ABD5B1"
                     strokeWidth={4}
                     opacity={0.7}
@@ -4135,6 +4284,7 @@ const KonvaDrawingLayerComponent = (
                       const dy = radius.y - center.y;
                       const newRadius = Math.sqrt(dx * dx + dy * dy);
 
+                      // Update circle object in store
                       updateGeometryObject(dependentId, {
                         points: [center],
                         radius: newRadius,
@@ -4176,6 +4326,7 @@ const KonvaDrawingLayerComponent = (
                       const diameter = Math.sqrt(dx * dx + dy * dy);
                       const newRadius = diameter / 2;
 
+                      // Update circle object in store
                       updateGeometryObject(dependentId, {
                         points: [{ x: centerX, y: centerY }],
                         radius: newRadius,
@@ -4248,6 +4399,7 @@ const KonvaDrawingLayerComponent = (
                         const dy = ay - centerY;
                         const newRadius = Math.sqrt(dx * dx + dy * dy);
 
+                        // Update circle object in store
                         updateGeometryObject(dependentId, {
                           points: [{ x: centerX, y: centerY }],
                           radius: newRadius,
@@ -4329,6 +4481,144 @@ const KonvaDrawingLayerComponent = (
                         });
                       }
                     }
+                  } else if (dependent.subType === "polygon-rhombus" && dependent.dependencies.length === 2) {
+                    // Rhombus: two points define one diagonal
+                    const point1 = geometryObjects.find((o) => o.id === dependent.dependencies[0]);
+                    const point2 = geometryObjects.find((o) => o.id === dependent.dependencies[1]);
+
+                    if (point1 && point2 && point1.points[0] && point2.points[0]) {
+                      const p1 = point1.id === obj.id ? newGraphPos : point1.points[0];
+                      const p2 = point2.id === obj.id ? newGraphPos : point2.points[0];
+
+                      const centerX = (p1.x + p2.x) / 2;
+                      const centerY = (p1.y + p2.y) / 2;
+                      const diag1Length = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+                      const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+                      const perpAngle = angle + Math.PI / 2;
+                      const diag2HalfLength = diag1Length / 4;
+
+                      const vertices = [
+                        { x: p1.x, y: p1.y },
+                        { x: centerX + diag2HalfLength * Math.cos(perpAngle), y: centerY + diag2HalfLength * Math.sin(perpAngle) },
+                        { x: p2.x, y: p2.y },
+                        { x: centerX - diag2HalfLength * Math.cos(perpAngle), y: centerY - diag2HalfLength * Math.sin(perpAngle) },
+                      ];
+
+                      updateGeometryObject(dependentId, { points: vertices });
+                    }
+                  } else if (dependent.subType === "polygon-square" && dependent.dependencies.length === 2) {
+                    // Square: two points define one side
+                    const point1 = geometryObjects.find((o) => o.id === dependent.dependencies[0]);
+                    const point2 = geometryObjects.find((o) => o.id === dependent.dependencies[1]);
+
+                    if (point1 && point2 && point1.points[0] && point2.points[0]) {
+                      const p1 = point1.id === obj.id ? newGraphPos : point1.points[0];
+                      const p2 = point2.id === obj.id ? newGraphPos : point2.points[0];
+
+                      const dx = p2.x - p1.x;
+                      const dy = p2.y - p1.y;
+                      const perpX = -dy;
+                      const perpY = dx;
+
+                      const vertices = [
+                        { x: p1.x, y: p1.y },
+                        { x: p2.x, y: p2.y },
+                        { x: p2.x + perpX, y: p2.y + perpY },
+                        { x: p1.x + perpX, y: p1.y + perpY },
+                      ];
+
+                      updateGeometryObject(dependentId, { points: vertices });
+                    }
+                  } else if (dependent.subType === "polygon-parallelogram" && dependent.dependencies.length === 2) {
+                    // Parallelogram: two points define one side
+                    const point1 = geometryObjects.find((o) => o.id === dependent.dependencies[0]);
+                    const point2 = geometryObjects.find((o) => o.id === dependent.dependencies[1]);
+
+                    if (point1 && point2 && point1.points[0] && point2.points[0]) {
+                      const p1 = point1.id === obj.id ? newGraphPos : point1.points[0];
+                      const p2 = point2.id === obj.id ? newGraphPos : point2.points[0];
+
+                      const dx = p2.x - p1.x;
+                      const dy = p2.y - p1.y;
+                      const angle = Math.PI / 3;
+                      const offsetX = dx * Math.cos(angle) - dy * Math.sin(angle);
+                      const offsetY = dx * Math.sin(angle) + dy * Math.cos(angle);
+
+                      const vertices = [
+                        { x: p1.x, y: p1.y },
+                        { x: p2.x, y: p2.y },
+                        { x: p2.x + offsetX, y: p2.y + offsetY },
+                        { x: p1.x + offsetX, y: p1.y + offsetY },
+                      ];
+
+                      updateGeometryObject(dependentId, { points: vertices });
+                    }
+                  } else if (dependent.subType === "polygon-rectangle" && dependent.dependencies.length === 2) {
+                    // Rectangle: two points define the diagonal
+                    const point1 = geometryObjects.find((o) => o.id === dependent.dependencies[0]);
+                    const point2 = geometryObjects.find((o) => o.id === dependent.dependencies[1]);
+
+                    if (point1 && point2 && point1.points[0] && point2.points[0]) {
+                      const p1 = point1.id === obj.id ? newGraphPos : point1.points[0];
+                      const p2 = point2.id === obj.id ? newGraphPos : point2.points[0];
+
+                      const vertices = [
+                        { x: p1.x, y: p1.y },
+                        { x: p2.x, y: p1.y },
+                        { x: p2.x, y: p2.y },
+                        { x: p1.x, y: p2.y },
+                      ];
+
+                      updateGeometryObject(dependentId, { points: vertices });
+                    }
+                  } else if (dependent.subType === "polygon-kite" && dependent.dependencies.length === 2) {
+                    // Kite: two points define the axis of symmetry
+                    const point1 = geometryObjects.find((o) => o.id === dependent.dependencies[0]);
+                    const point2 = geometryObjects.find((o) => o.id === dependent.dependencies[1]);
+
+                    if (point1 && point2 && point1.points[0] && point2.points[0]) {
+                      const p1 = point1.id === obj.id ? newGraphPos : point1.points[0];
+                      const p2 = point2.id === obj.id ? newGraphPos : point2.points[0];
+
+                      const dx = p2.x - p1.x;
+                      const dy = p2.y - p1.y;
+                      const length = Math.sqrt(dx * dx + dy * dy);
+                      const perpX = -dy / length * length * 0.3;
+                      const perpY = dx / length * length * 0.3;
+                      const wing1X = p1.x + dx * 0.3;
+                      const wing1Y = p1.y + dy * 0.3;
+
+                      const vertices = [
+                        { x: p1.x, y: p1.y },
+                        { x: wing1X + perpX, y: wing1Y + perpY },
+                        { x: p2.x, y: p2.y },
+                        { x: wing1X - perpX, y: wing1Y - perpY },
+                      ];
+
+                      updateGeometryObject(dependentId, { points: vertices });
+                    }
+                  } else if (dependent.subType === "polygon-right-triangle" && dependent.dependencies.length === 2) {
+                    // Right triangle: two points define the hypotenuse
+                    const point1 = geometryObjects.find((o) => o.id === dependent.dependencies[0]);
+                    const point2 = geometryObjects.find((o) => o.id === dependent.dependencies[1]);
+
+                    if (point1 && point2 && point1.points[0] && point2.points[0]) {
+                      const p1 = point1.id === obj.id ? newGraphPos : point1.points[0];
+                      const p2 = point2.id === obj.id ? newGraphPos : point2.points[0];
+
+                      const dx = p2.x - p1.x;
+                      const dy = p2.y - p1.y;
+                      const p3x = p1.x - dy;
+                      const p3y = p1.y + dx;
+
+                      const vertices = [
+                        { x: p1.x, y: p1.y },
+                        { x: p2.x, y: p2.y },
+                        { x: p3x, y: p3y },
+                      ];
+
+                      updateGeometryObject(dependentId, { points: vertices });
+                    }
                   } else {
                     // Regular polygon: update based on all dependency points
                     const polygonPoints = dependent.dependencies
@@ -4368,9 +4658,13 @@ const KonvaDrawingLayerComponent = (
                 obj.subType !== "point-midpoint"
               }
               listening={true}
-              onDragMove={() => {
-                const node = layerRef.current?.findOne(`#${obj.id}`);
-                if (!node) return;
+              onDragStart={(e) => {
+                const node = e.target;
+                // Store original graph position at drag start
+                node.setAttr('_origGraphPos', { x: obj.points[0].x, y: obj.points[0].y });
+              }}
+              onDragMove={(e) => {
+                const node = e.target;
 
                 const x = node.x();
                 const y = node.y();
@@ -4414,11 +4708,6 @@ const KonvaDrawingLayerComponent = (
                           x: p1.x + t * dx,
                           y: p1.y + t * dy,
                         };
-
-                        // Update constraint parameter
-                        updateGeometryObject(obj.id, {
-                          constraint: { ...obj.constraint, param: t },
-                        });
                       }
                     } else if (
                       obj.constraint.type === "circle" &&
@@ -4436,11 +4725,6 @@ const KonvaDrawingLayerComponent = (
                         x: center.x + constraintObj.radius * Math.cos(angle),
                         y: center.y + constraintObj.radius * Math.sin(angle),
                       };
-
-                      // Update constraint parameter
-                      updateGeometryObject(obj.id, {
-                        constraint: { ...obj.constraint, param: angle },
-                      });
                     } else if (
                       obj.constraint.type === "polygon" &&
                       constraintObj.points &&
@@ -4487,45 +4771,608 @@ const KonvaDrawingLayerComponent = (
                       }
 
                       newGraphPos = closestPoint;
-
-                      // Update constraint parameter
-                      updateGeometryObject(obj.id, {
-                        constraint: {
-                          ...obj.constraint,
-                          param: { edgeIndex: closestEdge, t: closestT },
-                        },
-                      });
                     }
                   }
                 }
 
-                // Update geometry object position temporarily (without saving to history)
-                updateGeometryObject(obj.id, {
-                  points: [{ x: newGraphPos.x, y: newGraphPos.y }],
-                });
+                // Store the calculated position for onDragEnd
+                node.setAttr('_newGraphPos', newGraphPos);
 
-                // Update dependent objects in real-time
-                updateDependentObjects(newGraphPos);
+                // If constrained, update node position to the constrained position
+                if (obj.constraint) {
+                  const constrainedScreenPos = graphToScreen(newGraphPos.x, newGraphPos.y, width, height, view);
+                  node.position({ x: constrainedScreenPos.x, y: constrainedScreenPos.y });
+                }
 
-                // Update node position to match constrained position
-                const newScreenPos = graphToScreen(
-                  newGraphPos.x,
-                  newGraphPos.y,
-                  width,
-                  height,
-                  view,
-                );
-                node.position({ x: newScreenPos.x, y: newScreenPos.y });
+                // Update dependent objects visually during drag
+                if (obj.dependents && obj.dependents.length > 0) {
+                  obj.dependents.forEach((dependentId) => {
+                    const dependent = geometryObjects.find(
+                      (o) => o.id === dependentId,
+                    );
+                    if (!dependent) return;
+
+                    // Update midpoints
+                    if (
+                      dependent.subType === "point-midpoint" &&
+                      dependent.dependencies
+                    ) {
+                      const dep1 = geometryObjects.find(
+                        (o) => o.id === dependent.dependencies![0],
+                      );
+                      const dep2 = geometryObjects.find(
+                        (o) => o.id === dependent.dependencies![1],
+                      );
+
+                      if (dep1 && dep2 && dep1.points[0] && dep2.points[0]) {
+                        // Use updated position if this is one of the dependencies
+                        const point1 =
+                          dep1.id === obj.id ? newGraphPos : dep1.points[0];
+                        const point2 =
+                          dep2.id === obj.id ? newGraphPos : dep2.points[0];
+
+                        // Get ratio (default to 1:1 midpoint if not specified)
+                        const ratio = dependent.ratio || { m: 1, n: 1 };
+
+                        // Calculate division point using formula: (n*P1 + m*P2) / (m+n)
+                        const divX =
+                          (ratio.n * point1.x + ratio.m * point2.x) /
+                          (ratio.m + ratio.n);
+                        const divY =
+                          (ratio.n * point1.y + ratio.m * point2.y) /
+                          (ratio.m + ratio.n);
+
+                        // Update the midpoint's visual position immediately
+                        const midpointNode = layerRef.current?.findOne(`#${dependentId}`);
+                        if (midpointNode) {
+                          const newMidpointScreen = graphToScreen(divX, divY, width, height, view);
+                          midpointNode.position({ x: newMidpointScreen.x, y: newMidpointScreen.y });
+                        }
+                      }
+                    }
+
+                    // Update circles
+                    if (dependent.type === "circle" && dependent.circleConfig) {
+                      // Handle circle-center-radius
+                      if (
+                        dependent.circleConfig.centerId &&
+                        dependent.circleConfig.radiusPointId
+                      ) {
+                        const centerPoint = geometryObjects.find(
+                          (o) => o.id === dependent.circleConfig!.centerId,
+                        );
+                        const radiusPoint = geometryObjects.find(
+                          (o) => o.id === dependent.circleConfig!.radiusPointId,
+                        );
+
+                        if (
+                          centerPoint &&
+                          radiusPoint &&
+                          centerPoint.points[0] &&
+                          radiusPoint.points[0]
+                        ) {
+                          // Use updated position if this is one of the dependencies
+                          const center =
+                            centerPoint.id === obj.id
+                              ? newGraphPos
+                              : centerPoint.points[0];
+                          const radiusPos =
+                            radiusPoint.id === obj.id
+                              ? newGraphPos
+                              : radiusPoint.points[0];
+
+                          // Calculate new radius
+                          const dx = radiusPos.x - center.x;
+                          const dy = radiusPos.y - center.y;
+                          const newRadius = Math.sqrt(dx * dx + dy * dy);
+
+                          // Update circle visual
+                          const circleGroup = layerRef.current?.findOne(`#${dependentId}`);
+                          if (circleGroup) {
+                            const circleElement = circleGroup.findOne((node: any) => node.getClassName() === 'Circle');
+                            if (circleElement) {
+                              const centerScreen = graphToScreen(center.x, center.y, width, height, view);
+                              const radiusScreen = newRadius * view.scale;
+
+                              circleGroup.position({ x: centerScreen.x, y: centerScreen.y });
+                              circleElement.radius(radiusScreen);
+
+                              // Reset center point scale if it exists
+                              if (dependent.circleConfig && dependent.circleConfig.centerId) {
+                                const centerNode = layerRef.current?.findOne(`#${dependent.circleConfig.centerId}`);
+                                if (centerNode) {
+                                  centerNode.scaleX(1);
+                                  centerNode.scaleY(1);
+                                }
+                              }
+
+                              circleElement.getLayer()?.batchDraw();
+                            }
+                          }
+                        }
+                      }
+                      // Handle circle-diameter
+                      else if (
+                        dependent.circleConfig.point1Id &&
+                        dependent.circleConfig.point2Id &&
+                        !dependent.circleConfig.point3Id
+                      ) {
+                        const point1 = geometryObjects.find(
+                          (o) => o.id === dependent.circleConfig!.point1Id,
+                        );
+                        const point2 = geometryObjects.find(
+                          (o) => o.id === dependent.circleConfig!.point2Id,
+                        );
+
+                        if (
+                          point1 &&
+                          point2 &&
+                          point1.points[0] &&
+                          point2.points[0]
+                        ) {
+                          // Use updated position if this is one of the dependencies
+                          const p1 =
+                            point1.id === obj.id ? newGraphPos : point1.points[0];
+                          const p2 =
+                            point2.id === obj.id ? newGraphPos : point2.points[0];
+
+                          // Calculate center (midpoint)
+                          const centerX = (p1.x + p2.x) / 2;
+                          const centerY = (p1.y + p2.y) / 2;
+
+                          // Calculate radius (half distance)
+                          const dx = p2.x - p1.x;
+                          const dy = p2.y - p1.y;
+                          const diameter = Math.sqrt(dx * dx + dy * dy);
+                          const newRadius = diameter / 2;
+
+                          // Update circle visual
+                          const circleGroup = layerRef.current?.findOne(`#${dependentId}`);
+                          if (circleGroup) {
+                            const circleElement = circleGroup.findOne((node: any) => node.getClassName() === 'Circle');
+                            if (circleElement) {
+                              const centerScreen = graphToScreen(centerX, centerY, width, height, view);
+                              const radiusScreen = newRadius * view.scale;
+
+                              circleGroup.position({ x: centerScreen.x, y: centerScreen.y });
+                              circleElement.radius(radiusScreen);
+
+                              // Reset diameter endpoint scales
+                              if (dependent.circleConfig && dependent.circleConfig.point1Id && dependent.circleConfig.point2Id) {
+                                const point1Node = layerRef.current?.findOne(`#${dependent.circleConfig.point1Id}`);
+                                const point2Node = layerRef.current?.findOne(`#${dependent.circleConfig.point2Id}`);
+                                if (point1Node) {
+                                  point1Node.scaleX(1);
+                                  point1Node.scaleY(1);
+                                }
+                                if (point2Node) {
+                                  point2Node.scaleX(1);
+                                  point2Node.scaleY(1);
+                                }
+                              }
+
+                              circleElement.getLayer()?.batchDraw();
+                            }
+                          }
+                        }
+                      }
+                      // Handle circle-3points
+                      else if (
+                        dependent.circleConfig.point1Id &&
+                        dependent.circleConfig.point2Id &&
+                        dependent.circleConfig.point3Id
+                      ) {
+                        const point1 = geometryObjects.find(
+                          (o) => o.id === dependent.circleConfig!.point1Id,
+                        );
+                        const point2 = geometryObjects.find(
+                          (o) => o.id === dependent.circleConfig!.point2Id,
+                        );
+                        const point3 = geometryObjects.find(
+                          (o) => o.id === dependent.circleConfig!.point3Id,
+                        );
+
+                        if (
+                          point1 &&
+                          point2 &&
+                          point3 &&
+                          point1.points[0] &&
+                          point2.points[0] &&
+                          point3.points[0]
+                        ) {
+                          // Use updated position if this is one of the dependencies
+                          const p1 =
+                            point1.id === obj.id ? newGraphPos : point1.points[0];
+                          const p2 =
+                            point2.id === obj.id ? newGraphPos : point2.points[0];
+                          const p3 =
+                            point3.id === obj.id ? newGraphPos : point3.points[0];
+
+                          // Calculate circumcircle (same formula as in updateDependentObjects)
+                          const ax = p1.x;
+                          const ay = p1.y;
+                          const bx = p2.x;
+                          const by = p2.y;
+                          const cx = p3.x;
+                          const cy = p3.y;
+
+                          const d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
+                          if (Math.abs(d) > 0.0001) {
+                            const ux = ((ax * ax + ay * ay) * (by - cy) + (bx * bx + by * by) * (cy - ay) + (cx * cx + cy * cy) * (ay - by)) / d;
+                            const uy = ((ax * ax + ay * ay) * (cx - bx) + (bx * bx + by * by) * (ax - cx) + (cx * cx + cy * cy) * (bx - ax)) / d;
+
+                            const dx = p1.x - ux;
+                            const dy = p1.y - uy;
+                            const newRadius = Math.sqrt(dx * dx + dy * dy);
+
+                            // Update circle visual
+                            const circleGroup = layerRef.current?.findOne(`#${dependentId}`);
+                            if (circleGroup) {
+                              const circleElement = circleGroup.findOne((node: any) => node.getClassName() === 'Circle');
+                              if (circleElement) {
+                                const centerScreen = graphToScreen(ux, uy, width, height, view);
+                                const radiusScreen = newRadius * view.scale;
+
+                                circleGroup.position({ x: centerScreen.x, y: centerScreen.y });
+                                circleElement.radius(radiusScreen);
+
+                                // Reset 3-point scales
+                                if (dependent.circleConfig && dependent.circleConfig.point1Id && dependent.circleConfig.point2Id && dependent.circleConfig.point3Id) {
+                                  const point1Node = layerRef.current?.findOne(`#${dependent.circleConfig.point1Id}`);
+                                  const point2Node = layerRef.current?.findOne(`#${dependent.circleConfig.point2Id}`);
+                                  const point3Node = layerRef.current?.findOne(`#${dependent.circleConfig.point3Id}`);
+                                  if (point1Node) {
+                                    point1Node.scaleX(1);
+                                    point1Node.scaleY(1);
+                                  }
+                                  if (point2Node) {
+                                    point2Node.scaleX(1);
+                                    point2Node.scaleY(1);
+                                  }
+                                  if (point3Node) {
+                                    point3Node.scaleX(1);
+                                    point3Node.scaleY(1);
+                                  }
+                                }
+
+                                circleElement.getLayer()?.batchDraw();
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+
+                    // Update polygons
+                    if (dependent.type === "polygon" && dependent.dependencies) {
+                      let polygonPoints: GeometryPoint[] = [];
+                      let allPointsFound = true;
+
+                      // Check if it's a regular polygon
+                      if (
+                        dependent.subType === "polygon-regular" &&
+                        dependent.sides &&
+                        dependent.dependencies.length === 2
+                      ) {
+                        // Regular polygon: recalculate based on center and radius point
+                        const centerPoint = geometryObjects.find(
+                          (o) => o.id === dependent.dependencies[0],
+                        );
+                        const vertexPoint = geometryObjects.find(
+                          (o) => o.id === dependent.dependencies[1],
+                        );
+
+                        if (
+                          centerPoint &&
+                          vertexPoint &&
+                          centerPoint.points[0] &&
+                          vertexPoint.points[0]
+                        ) {
+                          let center: GeometryPoint;
+                          let vertex: GeometryPoint;
+
+                          // Use updated position if this is one of the dependencies
+                          if (centerPoint.id === obj.id) {
+                            center = newGraphPos;
+                            // Move vertex point by the same offset to maintain relative position
+                            const dx = newGraphPos.x - centerPoint.points[0].x;
+                            const dy = newGraphPos.y - centerPoint.points[0].y;
+                            vertex = {
+                              x: vertexPoint.points[0].x + dx,
+                              y: vertexPoint.points[0].y + dy,
+                            };
+
+                            // Update vertex point's visual position immediately
+                            const vertexNode = layerRef.current?.findOne(`#${vertexPoint.id}`);
+                            if (vertexNode) {
+                              const newVertexScreen = graphToScreen(vertex.x, vertex.y, width, height, view);
+                              vertexNode.position({ x: newVertexScreen.x, y: newVertexScreen.y });
+                            }
+                          } else if (vertexPoint.id === obj.id) {
+                            center = centerPoint.points[0];
+                            vertex = newGraphPos;
+                          } else {
+                            center = centerPoint.points[0];
+                            vertex = vertexPoint.points[0];
+                          }
+
+                          const dx = vertex.x - center.x;
+                          const dy = vertex.y - center.y;
+                          const radius = Math.sqrt(dx * dx + dy * dy);
+                          const startAngle = Math.atan2(dy, dx);
+
+                          // Calculate vertices
+                          for (let i = 0; i < dependent.sides; i++) {
+                            const angle = startAngle + (i * 2 * Math.PI) / dependent.sides;
+                            polygonPoints.push({
+                              x: center.x + radius * Math.cos(angle),
+                              y: center.y + radius * Math.sin(angle),
+                            });
+                          }
+                        } else {
+                          allPointsFound = false;
+                        }
+                      } else if (dependent.subType === "polygon-rhombus" && dependent.dependencies.length === 2) {
+                        // Rhombus: two points define one diagonal
+                        const point1 = geometryObjects.find((o) => o.id === dependent.dependencies[0]);
+                        const point2 = geometryObjects.find((o) => o.id === dependent.dependencies[1]);
+
+                        if (point1 && point2 && point1.points[0] && point2.points[0]) {
+                          const p1 = point1.id === obj.id ? newGraphPos : point1.points[0];
+                          const p2 = point2.id === obj.id ? newGraphPos : point2.points[0];
+
+                          // Center of the rhombus
+                          const centerX = (p1.x + p2.x) / 2;
+                          const centerY = (p1.y + p2.y) / 2;
+
+                          // Length of first diagonal
+                          const diag1Length = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+
+                          // Create perpendicular diagonal
+                          const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+                          const perpAngle = angle + Math.PI / 2;
+                          const diag2HalfLength = diag1Length / 4;
+
+                          const p3x = centerX + diag2HalfLength * Math.cos(perpAngle);
+                          const p3y = centerY + diag2HalfLength * Math.sin(perpAngle);
+                          const p4x = centerX - diag2HalfLength * Math.cos(perpAngle);
+                          const p4y = centerY - diag2HalfLength * Math.sin(perpAngle);
+
+                          polygonPoints = [
+                            { x: p1.x, y: p1.y },
+                            { x: p3x, y: p3y },
+                            { x: p2.x, y: p2.y },
+                            { x: p4x, y: p4y },
+                          ];
+                        } else {
+                          allPointsFound = false;
+                        }
+                      } else if (dependent.subType === "polygon-square" && dependent.dependencies.length === 2) {
+                        // Square: two points define one side
+                        const point1 = geometryObjects.find((o) => o.id === dependent.dependencies[0]);
+                        const point2 = geometryObjects.find((o) => o.id === dependent.dependencies[1]);
+
+                        if (point1 && point2 && point1.points[0] && point2.points[0]) {
+                          const p1 = point1.id === obj.id ? newGraphPos : point1.points[0];
+                          const p2 = point2.id === obj.id ? newGraphPos : point2.points[0];
+
+                          // Calculate perpendicular vector
+                          const dx = p2.x - p1.x;
+                          const dy = p2.y - p1.y;
+                          const perpX = -dy;
+                          const perpY = dx;
+
+                          polygonPoints = [
+                            { x: p1.x, y: p1.y },
+                            { x: p2.x, y: p2.y },
+                            { x: p2.x + perpX, y: p2.y + perpY },
+                            { x: p1.x + perpX, y: p1.y + perpY },
+                          ];
+                        } else {
+                          allPointsFound = false;
+                        }
+                      } else if (dependent.subType === "polygon-parallelogram" && dependent.dependencies.length === 2) {
+                        // Parallelogram: two points define one side
+                        const point1 = geometryObjects.find((o) => o.id === dependent.dependencies[0]);
+                        const point2 = geometryObjects.find((o) => o.id === dependent.dependencies[1]);
+
+                        if (point1 && point2 && point1.points[0] && point2.points[0]) {
+                          const p1 = point1.id === obj.id ? newGraphPos : point1.points[0];
+                          const p2 = point2.id === obj.id ? newGraphPos : point2.points[0];
+
+                          const dx = p2.x - p1.x;
+                          const dy = p2.y - p1.y;
+
+                          // Create offset vector at 60 degrees from the base
+                          const angle = Math.PI / 3; // 60 degrees
+                          const offsetX = dx * Math.cos(angle) - dy * Math.sin(angle);
+                          const offsetY = dx * Math.sin(angle) + dy * Math.cos(angle);
+
+                          polygonPoints = [
+                            { x: p1.x, y: p1.y },
+                            { x: p2.x, y: p2.y },
+                            { x: p2.x + offsetX, y: p2.y + offsetY },
+                            { x: p1.x + offsetX, y: p1.y + offsetY },
+                          ];
+                        } else {
+                          allPointsFound = false;
+                        }
+                      } else if (dependent.subType === "polygon-rectangle" && dependent.dependencies.length === 2) {
+                        // Rectangle: two points define the diagonal
+                        const point1 = geometryObjects.find((o) => o.id === dependent.dependencies[0]);
+                        const point2 = geometryObjects.find((o) => o.id === dependent.dependencies[1]);
+
+                        if (point1 && point2 && point1.points[0] && point2.points[0]) {
+                          const p1 = point1.id === obj.id ? newGraphPos : point1.points[0];
+                          const p2 = point2.id === obj.id ? newGraphPos : point2.points[0];
+
+                          polygonPoints = [
+                            { x: p1.x, y: p1.y },
+                            { x: p2.x, y: p1.y },
+                            { x: p2.x, y: p2.y },
+                            { x: p1.x, y: p2.y },
+                          ];
+                        } else {
+                          allPointsFound = false;
+                        }
+                      } else if (dependent.subType === "polygon-kite" && dependent.dependencies.length === 2) {
+                        // Kite: two points define the axis of symmetry
+                        const point1 = geometryObjects.find((o) => o.id === dependent.dependencies[0]);
+                        const point2 = geometryObjects.find((o) => o.id === dependent.dependencies[1]);
+
+                        if (point1 && point2 && point1.points[0] && point2.points[0]) {
+                          const p1 = point1.id === obj.id ? newGraphPos : point1.points[0];
+                          const p2 = point2.id === obj.id ? newGraphPos : point2.points[0];
+
+                          const dx = p2.x - p1.x;
+                          const dy = p2.y - p1.y;
+                          const length = Math.sqrt(dx * dx + dy * dy);
+                          const perpX = -dy / length * length * 0.3;
+                          const perpY = dx / length * length * 0.3;
+                          const wing1X = p1.x + dx * 0.3;
+                          const wing1Y = p1.y + dy * 0.3;
+
+                          polygonPoints = [
+                            { x: p1.x, y: p1.y },
+                            { x: wing1X + perpX, y: wing1Y + perpY },
+                            { x: p2.x, y: p2.y },
+                            { x: wing1X - perpX, y: wing1Y - perpY },
+                          ];
+                        } else {
+                          allPointsFound = false;
+                        }
+                      } else if (dependent.subType === "polygon-right-triangle" && dependent.dependencies.length === 2) {
+                        // Right triangle: two points define the hypotenuse
+                        const point1 = geometryObjects.find((o) => o.id === dependent.dependencies[0]);
+                        const point2 = geometryObjects.find((o) => o.id === dependent.dependencies[1]);
+
+                        if (point1 && point2 && point1.points[0] && point2.points[0]) {
+                          const p1 = point1.id === obj.id ? newGraphPos : point1.points[0];
+                          const p2 = point2.id === obj.id ? newGraphPos : point2.points[0];
+
+                          const dx = p2.x - p1.x;
+                          const dy = p2.y - p1.y;
+                          const p3x = p1.x - dy;
+                          const p3y = p1.y + dx;
+
+                          polygonPoints = [
+                            { x: p1.x, y: p1.y },
+                            { x: p2.x, y: p2.y },
+                            { x: p3x, y: p3y },
+                          ];
+                        } else {
+                          allPointsFound = false;
+                        }
+                      } else {
+                        // Regular polygon: update based on all dependency points
+                        dependent.dependencies.forEach(depId => {
+                          const depPoint = geometryObjects.find(o => o.id === depId);
+                          if (depPoint && depPoint.points && depPoint.points[0]) {
+                            // Use updated position if this is the current dragging point
+                            const point = depPoint.id === obj.id ? newGraphPos : depPoint.points[0];
+                            polygonPoints.push(point);
+                          } else {
+                            allPointsFound = false;
+                          }
+                        });
+                      }
+
+                      if (allPointsFound && polygonPoints.length >= 3) {
+                        // Find polygon group and update its line points
+                        const polygonGroup = layerRef.current?.findOne(`#${dependentId}`);
+                        if (polygonGroup) {
+                          const lineElement = polygonGroup.findOne('.polygon-line');
+                          if (lineElement) {
+                            const screenPoints: number[] = [];
+                            polygonPoints.forEach(pt => {
+                              const screenPt = graphToScreen(pt.x, pt.y, width, height, view);
+                              screenPoints.push(screenPt.x, screenPt.y);
+                            });
+                            lineElement.points(screenPoints);
+                            layerRef.current?.batchDraw();
+                          }
+                        }
+                      }
+                    }
+
+                    // Update lines (segment, infinite line, ray)
+                    if (
+                      ["segment", "line", "ray"].includes(dependent.type) &&
+                      dependent.linePoints
+                    ) {
+                      const dep1 = geometryObjects.find(
+                        (o) => o.id === dependent.linePoints!.point1Id,
+                      );
+                      const dep2 = geometryObjects.find(
+                        (o) => o.id === dependent.linePoints!.point2Id,
+                      );
+
+                      if (dep1 && dep2 && dep1.points[0] && dep2.points[0]) {
+                        // Use updated position if this is one of the dependencies
+                        const point1 =
+                          dep1.id === obj.id ? newGraphPos : dep1.points[0];
+                        const point2 =
+                          dep2.id === obj.id ? newGraphPos : dep2.points[0];
+
+                        // Convert to screen coordinates
+                        const screenP1 = graphToScreen(point1.x, point1.y, width, height, view);
+                        const screenP2 = graphToScreen(point2.x, point2.y, width, height, view);
+
+                        // Find the line's Group and Line element
+                        const lineGroup = layerRef.current?.findOne(`#${dependentId}`);
+                        if (lineGroup) {
+                          const lineElement = lineGroup.findOne('Line');
+                          if (lineElement) {
+                            // Update line points based on type
+                            let linePoints: number[];
+
+                            if (dependent.type === "segment") {
+                              linePoints = [screenP1.x, screenP1.y, screenP2.x, screenP2.y];
+                            } else {
+                              // For infinite lines and rays, calculate extension
+                              const extension = Math.max(width, height) * 2;
+                              const length = Math.sqrt(
+                                Math.pow(screenP2.x - screenP1.x, 2) +
+                                  Math.pow(screenP2.y - screenP1.y, 2),
+                              );
+                              const dirX = length > 0 ? (screenP2.x - screenP1.x) / length : 0;
+                              const dirY = length > 0 ? (screenP2.y - screenP1.y) / length : 0;
+
+                              if (dependent.type === "line") {
+                                // Infinite line: extend in both directions
+                                const startX = screenP1.x - dirX * extension;
+                                const startY = screenP1.y - dirY * extension;
+                                const endX = screenP2.x + dirX * extension;
+                                const endY = screenP2.y + dirY * extension;
+                                linePoints = [startX, startY, endX, endY];
+                              } else {
+                                // Ray: start at point1, extend through point2
+                                const endX = screenP2.x + dirX * extension;
+                                const endY = screenP2.y + dirY * extension;
+                                linePoints = [screenP1.x, screenP1.y, endX, endY];
+                              }
+                            }
+
+                            lineElement.points(linePoints);
+                          }
+                        }
+                      }
+                    }
+                  });
+                }
               }}
-              onDragEnd={() => {
-                const node = layerRef.current?.findOne(`#${obj.id}`);
-                if (!node) return;
+              onDragEnd={(e) => {
+                const node = e.target;
 
-                const x = node.x();
-                const y = node.y();
+                // Get the position calculated in onDragMove
+                let newGraphPos = node.getAttr('_newGraphPos');
 
-                // Convert new screen position to graph coordinates
-                let newGraphPos = screenToGraph(x, y, width, height, view);
+                // If not available (shouldn't happen), calculate from current position
+                if (!newGraphPos) {
+                  const x = node.x();
+                  const y = node.y();
+                  newGraphPos = screenToGraph(x, y, width, height, view);
+                }
 
                 // If point is constrained, project it onto the constraint object
                 if (obj.constraint) {
@@ -4656,15 +5503,13 @@ const KonvaDrawingLayerComponent = (
                 // Update dependent objects (midpoints, lines, etc.)
                 updateDependentObjects(newGraphPos);
 
-                // Reset node position
-                const finalScreenPos = graphToScreen(
-                  newGraphPos.x,
-                  newGraphPos.y,
-                  width,
-                  height,
-                  view,
-                );
-                node.position({ x: finalScreenPos.x, y: finalScreenPos.y });
+                // Clean up stored attributes
+                node.setAttr('_origGraphPos', null);
+                node.setAttr('_newGraphPos', null);
+
+                // Reset node to new position
+                const newScreenPos = graphToScreen(newGraphPos.x, newGraphPos.y, width, height, view);
+                node.position({ x: newScreenPos.x, y: newScreenPos.y });
               }}
               onTransformEnd={() => {
                 const node = layerRef.current?.findOne(`#${obj.id}`);
@@ -4699,6 +5544,12 @@ const KonvaDrawingLayerComponent = (
             >
               {/* Point circle */}
               <Circle
+                ref={(node) => {
+                  // Ensure points always render on top of circles and polygons
+                  if (node) {
+                    node.moveToTop();
+                  }
+                }}
                 radius={radius}
                 fill={
                   isSelected

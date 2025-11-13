@@ -45,7 +45,14 @@ export function GraphCanvas() {
   const [textInputPosition, setTextInputPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
   const [textInputValue, setTextInputValue] = useState('')
   const [editingTextId, setEditingTextId] = useState<string | null>(null) // Track which text is being edited
-  const textInputRef = useRef<HTMLInputElement>(null)
+  const textInputRef = useRef<HTMLTextAreaElement>(null)
+  const [textareaWidth, setTextareaWidth] = useState(200)
+  const [isResizingTextarea, setIsResizingTextarea] = useState(false)
+  const resizeStartXRef = useRef(0)
+  const resizeStartWidthRef = useRef(200)
+  const [editingFontSize, setEditingFontSize] = useState(20)
+  const [editingColor, setEditingColor] = useState('#000000')
+  const editingContainerRef = useRef<HTMLDivElement>(null)
 
   // Text object drag state
   const [isDraggingText, setIsDraggingText] = useState(false)
@@ -911,7 +918,7 @@ export function GraphCanvas() {
 
   // Handle text object dragging
   useEffect(() => {
-    if (!isDraggingText || !draggingTextRef.current) return
+    if (!isDraggingText) return
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!draggingTextRef.current || !overlayCanvasRef.current) return
@@ -951,6 +958,42 @@ export function GraphCanvas() {
       window.removeEventListener('mouseup', handleMouseUp)
     }
   }, [isDraggingText, view, updateTextObject])
+
+  // Handle textarea resize
+  useEffect(() => {
+    if (!isResizingTextarea) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - resizeStartXRef.current
+      const newWidth = Math.max(200, Math.min(800, resizeStartWidthRef.current + deltaX))
+      setTextareaWidth(newWidth)
+    }
+
+    const handleMouseUp = () => {
+      setIsResizingTextarea(false)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isResizingTextarea])
+
+  // Auto-resize textarea when it becomes visible, value, or font size changes
+  useEffect(() => {
+    if (textInputVisible && textInputRef.current) {
+      const textarea = textInputRef.current
+      // Small delay to ensure DOM is updated
+      setTimeout(() => {
+        textarea.style.height = 'auto'
+        const newHeight = Math.max(40, textarea.scrollHeight)
+        textarea.style.height = `${newHeight}px`
+      }, 0)
+    }
+  }, [textInputVisible, textInputValue, editingFontSize])
 
   // Handle clipboard paste for images
   useEffect(() => {
@@ -1679,12 +1722,31 @@ export function GraphCanvas() {
     return null
   }
 
+  // Calculate text width based on content and font size
+  const calculateTextWidth = (text: string, fontSize: number): number => {
+    if (!text) return 200
+
+    const lines = text.split('\n')
+    const maxLineLength = Math.max(...lines.map(line => line.length))
+
+    // Estimate width: character count * font size factor + padding
+    // Using 0.6 as approximation for bold font width ratio
+    const estimatedWidth = maxLineLength * fontSize * 0.6 + 30
+
+    return Math.max(200, Math.min(800, estimatedWidth))
+  }
+
   const handleTextInputSubmit = () => {
     if (!textInputValue.trim() || !overlayCanvasRef.current) return
 
     if (editingTextId) {
-      // Update existing text
-      updateTextObject(editingTextId, { text: textInputValue })
+      // Update existing text with new content, maxWidth, fontSize, and color
+      updateTextObject(editingTextId, {
+        text: textInputValue,
+        maxWidth: textareaWidth,
+        fontSize: editingFontSize,
+        color: editingColor
+      })
       setEditingTextId(null)
     } else {
       // Add new text
@@ -1702,8 +1764,9 @@ export function GraphCanvas() {
         text: textInputValue,
         x: graphPos.x,
         y: graphPos.y,
-        fontSize: 20,
-        color: penColor,
+        fontSize: editingFontSize,
+        color: editingColor,
+        maxWidth: textareaWidth
       })
     }
 
@@ -1719,11 +1782,14 @@ export function GraphCanvas() {
     const canvasX = e.clientX - rect.left
     const canvasY = e.clientY - rect.top
 
-    // Handle text tool
-    if (drawingTool === 'text') {
+    // Handle text tool (only on canvas click, not text object)
+    if (drawingTool === 'text' && !textInputVisible) {
       setTextInputPosition({ x: canvasX, y: canvasY })
       setTextInputVisible(true)
       setTextInputValue('')
+      setTextareaWidth(200) // Default width for new text
+      setEditingFontSize(20) // Default font size
+      setEditingColor(penColor) // Use current pen color
       setTimeout(() => textInputRef.current?.focus(), 10)
       return
     }
@@ -2068,6 +2134,49 @@ export function GraphCanvas() {
         }
 
         // Store the center point in tempPoints
+        addCreationPoint(clickedPointId)
+
+        return
+      }
+
+      // Handle rectangle, square, parallelogram, rhombus, kite, right-triangle (click-drag-release interaction)
+      if (creationState.toolType === 'polygon-rectangle' ||
+          creationState.toolType === 'polygon-square' ||
+          creationState.toolType === 'polygon-parallelogram' ||
+          creationState.toolType === 'polygon-rhombus' ||
+          creationState.toolType === 'polygon-kite' ||
+          creationState.toolType === 'polygon-right-triangle') {
+        let clickedPointId = findPointAtLocation(graphPos.x, graphPos.y)
+
+        // If no existing point was clicked, create a new point at the clicked location
+        if (!clickedPointId) {
+          const pointCount = geometryObjects.filter(obj => obj.type === 'point').length
+          const label = String.fromCharCode(65 + (pointCount % 26))
+
+          clickedPointId = addGeometryObject({
+            type: 'point',
+            subType: 'point-fixed',
+            points: [{ x: graphPos.x, y: graphPos.y }],
+            color: '#4ecdc4',
+            strokeWidth: 4,
+            visible: true,
+            selected: true, // Select first point
+            label: label,
+            scale: 1,
+          })
+        } else {
+          // Highlight existing point
+          updateGeometryObject(clickedPointId, { selected: true })
+        }
+
+        // Start dragging to create polygon
+        setIsCreatingGeometry(true)
+        creationDragRef.current = {
+          firstPointId: clickedPointId,
+          currentPos: graphPos,
+        }
+
+        // Store the first point in tempPoints
         addCreationPoint(clickedPointId)
 
         return
@@ -3490,6 +3599,265 @@ export function GraphCanvas() {
 
           // Don't call finishCreation() - keep tempPoints for dialog
           return
+        } else if (creationState.toolType === 'polygon-rectangle') {
+          // Rectangle: two points define the diagonal
+          const p1 = point1.points[0]
+          const p2 = point2.points[0]
+
+          // Create rectangle with p1 and p2 as opposite corners
+          const vertices = [
+            { x: p1.x, y: p1.y },
+            { x: p2.x, y: p1.y },
+            { x: p2.x, y: p2.y },
+            { x: p1.x, y: p2.y },
+          ]
+
+          const newPolygonId = addGeometryObject({
+            type: 'polygon',
+            subType: 'polygon-rectangle',
+            points: vertices,
+            color: '#ABD5B1',
+            strokeWidth: 4,
+            visible: true,
+            selected: false,
+            label: '',
+            scale: 1,
+            dependencies: [firstPointId, secondPointId],
+          })
+
+          updateGeometryObject(firstPointId, {
+            dependents: [...(point1.dependents || []), newPolygonId],
+            selected: false,
+          })
+          updateGeometryObject(secondPointId, {
+            dependents: [...(point2.dependents || []), newPolygonId],
+            selected: false,
+          })
+        } else if (creationState.toolType === 'polygon-square') {
+          // Square: two points define one side
+          const p1 = point1.points[0]
+          const p2 = point2.points[0]
+
+          // Calculate perpendicular vector
+          const dx = p2.x - p1.x
+          const dy = p2.y - p1.y
+          const perpX = -dy
+          const perpY = dx
+
+          // Create square
+          const vertices = [
+            { x: p1.x, y: p1.y },
+            { x: p2.x, y: p2.y },
+            { x: p2.x + perpX, y: p2.y + perpY },
+            { x: p1.x + perpX, y: p1.y + perpY },
+          ]
+
+          const newPolygonId = addGeometryObject({
+            type: 'polygon',
+            subType: 'polygon-square',
+            points: vertices,
+            color: '#ABD5B1',
+            strokeWidth: 4,
+            visible: true,
+            selected: false,
+            label: '',
+            scale: 1,
+            dependencies: [firstPointId, secondPointId],
+          })
+
+          updateGeometryObject(firstPointId, {
+            dependents: [...(point1.dependents || []), newPolygonId],
+            selected: false,
+          })
+          updateGeometryObject(secondPointId, {
+            dependents: [...(point2.dependents || []), newPolygonId],
+            selected: false,
+          })
+        } else if (creationState.toolType === 'polygon-parallelogram') {
+          // Parallelogram: two points define one side (will need 3rd point)
+          // Store as two points for now, but we'll handle 3-point creation differently
+          const p1 = point1.points[0]
+          const p2 = point2.points[0]
+
+          // Calculate a default parallelogram with 60-degree angle
+          const dx = p2.x - p1.x
+          const dy = p2.y - p1.y
+
+          // Create offset vector at 60 degrees from the base
+          const angle = Math.PI / 3 // 60 degrees
+          const offsetX = dx * Math.cos(angle) - dy * Math.sin(angle)
+          const offsetY = dx * Math.sin(angle) + dy * Math.cos(angle)
+
+          const vertices = [
+            { x: p1.x, y: p1.y },
+            { x: p2.x, y: p2.y },
+            { x: p2.x + offsetX, y: p2.y + offsetY },
+            { x: p1.x + offsetX, y: p1.y + offsetY },
+          ]
+
+          const newPolygonId = addGeometryObject({
+            type: 'polygon',
+            subType: 'polygon-parallelogram',
+            points: vertices,
+            color: '#ABD5B1',
+            strokeWidth: 4,
+            visible: true,
+            selected: false,
+            label: '',
+            scale: 1,
+            dependencies: [firstPointId, secondPointId],
+          })
+
+          updateGeometryObject(firstPointId, {
+            dependents: [...(point1.dependents || []), newPolygonId],
+            selected: false,
+          })
+          updateGeometryObject(secondPointId, {
+            dependents: [...(point2.dependents || []), newPolygonId],
+            selected: false,
+          })
+        } else if (creationState.toolType === 'polygon-rhombus') {
+          // Rhombus: two points define one diagonal
+          const p1 = point1.points[0]
+          const p2 = point2.points[0]
+
+          // Center of the rhombus
+          const centerX = (p1.x + p2.x) / 2
+          const centerY = (p1.y + p2.y) / 2
+
+          // Length of first diagonal
+          const diag1Length = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2))
+
+          // Create perpendicular diagonal (make it half the length for aesthetics)
+          const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x)
+          const perpAngle = angle + Math.PI / 2
+          const diag2HalfLength = diag1Length / 4
+
+          const p3x = centerX + diag2HalfLength * Math.cos(perpAngle)
+          const p3y = centerY + diag2HalfLength * Math.sin(perpAngle)
+          const p4x = centerX - diag2HalfLength * Math.cos(perpAngle)
+          const p4y = centerY - diag2HalfLength * Math.sin(perpAngle)
+
+          const vertices = [
+            { x: p1.x, y: p1.y },
+            { x: p3x, y: p3y },
+            { x: p2.x, y: p2.y },
+            { x: p4x, y: p4y },
+          ]
+
+          const newPolygonId = addGeometryObject({
+            type: 'polygon',
+            subType: 'polygon-rhombus',
+            points: vertices,
+            color: '#ABD5B1',
+            strokeWidth: 4,
+            visible: true,
+            selected: false,
+            label: '',
+            scale: 1,
+            dependencies: [firstPointId, secondPointId],
+          })
+
+          updateGeometryObject(firstPointId, {
+            dependents: [...(point1.dependents || []), newPolygonId],
+            selected: false,
+          })
+          updateGeometryObject(secondPointId, {
+            dependents: [...(point2.dependents || []), newPolygonId],
+            selected: false,
+          })
+        } else if (creationState.toolType === 'polygon-kite') {
+          // Kite: two points define the axis of symmetry
+          const p1 = point1.points[0]
+          const p2 = point2.points[0]
+
+          // Calculate perpendicular vector
+          const dx = p2.x - p1.x
+          const dy = p2.y - p1.y
+          const length = Math.sqrt(dx * dx + dy * dy)
+
+          // Perpendicular offset (30% of length on each side)
+          const perpX = -dy / length * length * 0.3
+          const perpY = dx / length * length * 0.3
+
+          // Position along axis for the two wing points
+          const midX = (p1.x + p2.x) / 2
+          const midY = (p1.y + p2.y) / 2
+
+          // Wing points at different positions
+          const wing1X = p1.x + dx * 0.3
+          const wing1Y = p1.y + dy * 0.3
+          const wing2X = p1.x + dx * 0.7
+          const wing2Y = p1.y + dy * 0.7
+
+          const vertices = [
+            { x: p1.x, y: p1.y },
+            { x: wing1X + perpX, y: wing1Y + perpY },
+            { x: p2.x, y: p2.y },
+            { x: wing1X - perpX, y: wing1Y - perpY },
+          ]
+
+          const newPolygonId = addGeometryObject({
+            type: 'polygon',
+            subType: 'polygon-kite',
+            points: vertices,
+            color: '#ABD5B1',
+            strokeWidth: 4,
+            visible: true,
+            selected: false,
+            label: '',
+            scale: 1,
+            dependencies: [firstPointId, secondPointId],
+          })
+
+          updateGeometryObject(firstPointId, {
+            dependents: [...(point1.dependents || []), newPolygonId],
+            selected: false,
+          })
+          updateGeometryObject(secondPointId, {
+            dependents: [...(point2.dependents || []), newPolygonId],
+            selected: false,
+          })
+        } else if (creationState.toolType === 'polygon-right-triangle') {
+          // Right triangle: two points define the legs, third vertex at the right angle
+          const p1 = point1.points[0]
+          const p2 = point2.points[0]
+
+          // Create right angle at p1
+          const dx = p2.x - p1.x
+          const dy = p2.y - p1.y
+
+          // Perpendicular vector for the other leg (same length)
+          const p3x = p1.x - dy
+          const p3y = p1.y + dx
+
+          const vertices = [
+            { x: p1.x, y: p1.y },
+            { x: p2.x, y: p2.y },
+            { x: p3x, y: p3y },
+          ]
+
+          const newPolygonId = addGeometryObject({
+            type: 'polygon',
+            subType: 'polygon-right-triangle',
+            points: vertices,
+            color: '#ABD5B1',
+            strokeWidth: 4,
+            visible: true,
+            selected: false,
+            label: '',
+            scale: 1,
+            dependencies: [firstPointId, secondPointId],
+          })
+
+          updateGeometryObject(firstPointId, {
+            dependents: [...(point1.dependents || []), newPolygonId],
+            selected: false,
+          })
+          updateGeometryObject(secondPointId, {
+            dependents: [...(point2.dependents || []), newPolygonId],
+            selected: false,
+          })
         }
       }
 
@@ -4871,6 +5239,11 @@ export function GraphCanvas() {
         const rect = canvas.getBoundingClientRect()
         const screen = graphToScreen(textObj.x, textObj.y, rect.width, rect.height, view)
 
+        // Hide text object when it's being edited
+        if (editingTextId === textObj.id) {
+          return null
+        }
+
         return (
           <div
             key={textObj.id}
@@ -4884,18 +5257,24 @@ export function GraphCanvas() {
               pointerEvents: 'auto',
               cursor: drawingTool === 'text' ? 'default' : 'move',
               userSelect: 'none',
-              whiteSpace: 'nowrap',
+              whiteSpace: 'pre-wrap',
+              wordWrap: 'break-word',
               backgroundColor: 'rgba(255, 255, 255, 0.8)',
               padding: '4px 8px',
               borderRadius: '4px',
               border: textObj.selected ? '2px solid #4CAF50' : '1px solid rgba(0, 0, 0, 0.2)',
               zIndex: 1000,
+              maxWidth: textObj.maxWidth ? `${textObj.maxWidth}px` : undefined,
+              overflowWrap: 'break-word',
+              lineHeight: '1.5',
+              minHeight: 'fit-content',
+              height: 'auto',
             }}
             onMouseDown={(e) => {
               e.stopPropagation()
               // Allow dragging unless text tool is active
               if (drawingTool !== 'text') {
-                // Start dragging
+                // Start dragging immediately
                 draggingTextRef.current = {
                   textId: textObj.id,
                   startMouseX: e.clientX - rect.left,
@@ -4908,65 +5287,241 @@ export function GraphCanvas() {
                 updateTextObject(textObj.id, { selected: true })
               }
             }}
-            onDoubleClick={(e) => {
-              e.stopPropagation()
-              // Enter edit mode
-              setEditingTextId(textObj.id)
-              setTextInputValue(textObj.text)
-              setTextInputPosition({ x: screen.x, y: screen.y })
-              setTextInputVisible(true)
-              setTimeout(() => textInputRef.current?.focus(), 10)
-            }}
           >
             {textObj.text}
+            {/* Edit icon - only show when selected and not editing */}
+            {textObj.selected && editingTextId !== textObj.id && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  // Enter edit mode
+                  setEditingTextId(textObj.id)
+                  setTextInputValue(textObj.text)
+                  setTextInputPosition({ x: screen.x, y: screen.y })
+                  // Use existing maxWidth or calculate from text
+                  const initialWidth = textObj.maxWidth || calculateTextWidth(textObj.text, textObj.fontSize)
+                  setTextareaWidth(initialWidth)
+                  setEditingFontSize(textObj.fontSize)
+                  setEditingColor(textObj.color)
+                  setTextInputVisible(true)
+                  setTimeout(() => textInputRef.current?.focus(), 10)
+                }}
+                onMouseDown={(e) => {
+                  // Prevent drag when clicking edit icon
+                  e.stopPropagation()
+                }}
+                style={{
+                  position: 'absolute',
+                  top: '-5px',
+                  right: '-5px',
+                  width: '16px',
+                  height: '16px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(78, 205, 196, 0.95)',
+                  border: '1px solid rgba(0, 0, 0, 0.2)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '8px',
+                  padding: 0,
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
+                }}
+                title="Edit text"
+              >
+                ✏️
+              </button>
+            )}
           </div>
         )
       })}
       {/* Text input field */}
-      {textInputVisible && (
-        <div
-          style={{
-            position: 'absolute',
-            left: `${textInputPosition.x}px`,
-            top: `${textInputPosition.y}px`,
-            zIndex: 1000,
-          }}
-        >
-          <input
-            ref={textInputRef}
-            type="text"
-            value={textInputValue}
-            onChange={(e) => setTextInputValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleTextInputSubmit()
-              } else if (e.key === 'Escape') {
-                setTextInputVisible(false)
-                setTextInputValue('')
-                setEditingTextId(null)
-              }
-            }}
-            onBlur={() => {
-              if (textInputValue.trim()) {
-                handleTextInputSubmit()
-              } else {
-                setTextInputVisible(false)
-                setTextInputValue('')
-                setEditingTextId(null)
-              }
-            }}
+      {textInputVisible && (() => {
+        return (
+          <div
+            ref={editingContainerRef}
             style={{
-              padding: '8px 12px',
-              fontSize: '16px',
-              border: '2px solid #4CAF50',
-              borderRadius: '4px',
-              outline: 'none',
-              minWidth: '200px',
+              position: 'absolute',
+              left: `${textInputPosition.x}px`,
+              top: `${textInputPosition.y}px`,
+              zIndex: 1000,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px',
             }}
-            placeholder="텍스트 입력..."
-          />
-        </div>
-      )}
+          >
+            {/* Font size and color controls */}
+            <div style={{
+              display: 'flex',
+              gap: '4px',
+              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+              padding: '4px',
+              borderRadius: '4px',
+              border: '1px solid #4CAF50',
+            }}>
+              {/* Font size buttons */}
+              <button
+                onClick={() => setEditingFontSize(Math.max(12, editingFontSize - 2))}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '4px',
+                  border: '1px solid #ddd',
+                  backgroundColor: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                title="Decrease font size"
+              >
+                -
+              </button>
+              <span style={{
+                fontSize: '12px',
+                padding: '0 4px',
+                display: 'flex',
+                alignItems: 'center',
+                minWidth: '32px',
+                justifyContent: 'center',
+              }}>
+                {editingFontSize}px
+              </span>
+              <button
+                onClick={() => setEditingFontSize(Math.min(48, editingFontSize + 2))}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '4px',
+                  border: '1px solid #ddd',
+                  backgroundColor: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                title="Increase font size"
+              >
+                +
+              </button>
+              {/* Color picker */}
+              <input
+                type="color"
+                value={editingColor}
+                onChange={(e) => setEditingColor(e.target.value)}
+                onMouseDown={(e) => e.stopPropagation()}
+                style={{
+                  width: '32px',
+                  height: '24px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                }}
+                title="Change text color"
+              />
+            </div>
+            {/* Textarea and resize handle */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'stretch',
+            }}>
+              <textarea
+              ref={textInputRef}
+              value={textInputValue}
+              onChange={(e) => {
+                setTextInputValue(e.target.value)
+                // Auto-resize textarea height based on content
+                const textarea = e.target
+                textarea.style.height = 'auto'
+                const newHeight = Math.max(40, textarea.scrollHeight)
+                textarea.style.height = `${newHeight}px`
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleTextInputSubmit()
+                } else if (e.key === 'Escape') {
+                  setTextInputVisible(false)
+                  setTextInputValue('')
+                  setEditingTextId(null)
+                }
+              }}
+              onBlur={(e) => {
+                setTimeout(() => {
+                  // Check if focus moved to an element within the editing container
+                  const relatedTarget = e.relatedTarget as HTMLElement
+                  if (relatedTarget && editingContainerRef.current?.contains(relatedTarget)) {
+                    // Focus moved within editing area, don't submit
+                    return
+                  }
+
+                  // Focus moved outside editing area, submit or cancel
+                  if (textInputValue.trim()) {
+                    handleTextInputSubmit()
+                  } else {
+                    setTextInputVisible(false)
+                    setTextInputValue('')
+                    setEditingTextId(null)
+                  }
+                }, 100)
+              }}
+              style={{
+                padding: '4px 8px',
+                fontSize: `${editingFontSize}px`,
+                fontWeight: 'bold',
+                color: editingColor,
+                border: '2px solid #4CAF50',
+                borderRadius: '4px 0 0 4px',
+                outline: 'none',
+                width: `${textareaWidth}px`,
+                minHeight: '40px',
+                resize: 'none',
+                overflow: 'hidden',
+                fontFamily: 'inherit',
+                lineHeight: '1.5',
+                backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                whiteSpace: 'pre-wrap',
+                wordWrap: 'break-word',
+              }}
+              placeholder="텍스트 입력..."
+            />
+            {/* Resize handle */}
+            <div
+              onMouseDown={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                setIsResizingTextarea(true)
+                resizeStartXRef.current = e.clientX
+                resizeStartWidthRef.current = textareaWidth
+              }}
+              style={{
+                width: '8px',
+                backgroundColor: 'rgba(78, 205, 196, 0.5)',
+                cursor: 'ew-resize',
+                borderRadius: '0 4px 4px 0',
+                border: '2px solid #4CAF50',
+                borderLeft: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                userSelect: 'none',
+              }}
+            >
+              <div style={{
+                width: '2px',
+                height: '20px',
+                backgroundColor: '#4CAF50',
+                borderRadius: '1px',
+              }} />
+            </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

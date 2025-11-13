@@ -1,4 +1,5 @@
 import { getStroke } from 'perfect-freehand'
+import { BrushStabilizer } from './src/features/brush/BrushStabilizer.ts'
 
 const canvas = document.getElementById('canvas')
 const ctx = canvas.getContext('2d')
@@ -90,6 +91,17 @@ let tempCanvas = null
 let captureMode = false
 let currentPoints = [] // For Perfect Freehand
 
+// Brush stabilizer instance
+// Disabled for better real-time responsiveness in writing window
+const brushStabilizer = new BrushStabilizer({
+  mode: 'none',
+  queueSize: 10,
+  delayDistance: 10,
+  finishStabilizer: true,
+  stabilizeSensors: true,
+  zoomLevel: 1.0
+})
+
 // Undo/Redo state
 let history = []
 let historyStep = -1
@@ -97,6 +109,7 @@ const MAX_HISTORY = 50
 
 // Log that Perfect Freehand is loaded
 console.log('Perfect Freehand loaded successfully')
+console.log('Brush stabilizer initialized (mode: none for better real-time responsiveness)')
 
 // History management functions
 function saveState() {
@@ -255,13 +268,23 @@ window.setTool = function(tool) {
     document.getElementById(toolButtons[currentTool]).classList.add('active')
   }
 
-  // Update cursor
+  // Update cursor with custom icons
+  canvas.className = '' // Clear all classes first
+
   if (currentTool === 'none') {
-    canvas.style.cursor = 'default'
+    canvas.className = 'default-cursor'
+  } else if (currentTool === 'pen') {
+    canvas.className = 'pen-cursor'
+  } else if (currentTool === 'highlighter') {
+    canvas.className = 'highlighter-cursor'
+  } else if (currentTool === 'arrow') {
+    canvas.className = 'arrow-cursor'
+  } else if (currentTool === 'line') {
+    canvas.className = 'line-cursor'
+  } else if (currentTool === 'rectangle') {
+    canvas.className = 'rectangle-cursor'
   } else if (currentTool === 'eraser') {
-    canvas.style.cursor = 'pointer'
-  } else {
-    canvas.style.cursor = 'crosshair'
+    canvas.className = 'eraser-cursor'
   }
 
   // Update mouse event passthrough
@@ -292,7 +315,9 @@ function startDrawing(e) {
 
   // Initialize points array for pen and highlighter
   if (currentTool === 'pen' || currentTool === 'highlighter') {
-    currentPoints = [[e.clientX, e.clientY, 0.5]]
+    currentPoints = []
+    // Start brush stabilizer (currently disabled for better responsiveness)
+    brushStabilizer.startStroke()
     console.log('Initialized points for pen/highlighter')
   }
 }
@@ -304,11 +329,11 @@ function draw(e) {
   const y = e.clientY
 
   if (currentTool === 'pen' || currentTool === 'highlighter') {
-    // Add point to array
+    // Add point directly without stabilizer for better real-time responsiveness
     currentPoints.push([x, y, 0.5])
 
     // Use Perfect Freehand to generate smooth stroke (same as main graph)
-    if (currentPoints.length > 1) {
+    if (currentPoints.length > 0) {
       const size = currentSize
 
       const stroke = getStroke(currentPoints, {
@@ -375,6 +400,47 @@ function draw(e) {
 
 function stopDrawing(e) {
   if (!isDrawing || captureMode) return
+
+  // Get remaining stabilized points when finishing stroke
+  if (currentTool === 'pen' || currentTool === 'highlighter') {
+    const remainingPoints = brushStabilizer.endStroke()
+
+    // Add remaining points to currentPoints
+    for (const point of remainingPoints) {
+      currentPoints.push([point.x, point.y, point.pressure || 0.5])
+    }
+
+    // Redraw final stroke with all points
+    if (currentPoints.length > 1 && tempCanvas) {
+      const size = currentSize
+
+      const stroke = getStroke(currentPoints, {
+        size: size,
+        thinning: 0,
+        smoothing: 0.8,
+        streamline: 0.3,
+        easing: (t) => t,
+        start: { taper: 0, cap: true },
+        end: { taper: 0, cap: true },
+      })
+
+      const pathData = getSvgPathFromStroke(stroke)
+
+      // Clear and redraw final stroke
+      ctx.putImageData(tempCanvas, 0, 0)
+
+      // Apply transparency for highlighter
+      if (currentTool === 'highlighter') {
+        ctx.save()
+        ctx.fillStyle = hexToRgba(currentColor, 0.3)
+        const p = new Path2D(pathData)
+        ctx.fill(p)
+        ctx.restore()
+      } else {
+        drawStrokePath(pathData, currentColor, 1.0)
+      }
+    }
+  }
 
   isDrawing = false
   tempCanvas = null
@@ -693,12 +759,22 @@ window.startRectCapture = function() {
     captureMode = false
 
     // Restore cursor based on current tool
+    canvas.className = '' // Clear all classes first
+
     if (currentTool === 'none') {
-      canvas.style.cursor = 'default'
+      canvas.className = 'default-cursor'
+    } else if (currentTool === 'pen') {
+      canvas.className = 'pen-cursor'
+    } else if (currentTool === 'highlighter') {
+      canvas.className = 'highlighter-cursor'
+    } else if (currentTool === 'arrow') {
+      canvas.className = 'arrow-cursor'
+    } else if (currentTool === 'line') {
+      canvas.className = 'line-cursor'
+    } else if (currentTool === 'rectangle') {
+      canvas.className = 'rectangle-cursor'
     } else if (currentTool === 'eraser') {
-      canvas.style.cursor = 'pointer'
-    } else {
-      canvas.style.cursor = 'crosshair'
+      canvas.className = 'eraser-cursor'
     }
 
     // Update mouse events to restore previous state

@@ -10,6 +10,7 @@ import { GraphCanvas } from './features/graph2d/GraphCanvas'
 import { SplitPanel, SplitPanelHandle } from './ui/SplitPanel'
 import { PanelTabs } from './ui/PanelTabs'
 import { PageList } from './components/PageList'
+import { BrushSettingsPanel } from './features/brush/BrushSettingsPanel'
 import { useStore } from './store'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
@@ -227,6 +228,7 @@ function App() {
             )}
             {activePanelTab === 'geometry' && <GeometryToolPanel />}
             {activePanelTab === 'page' && <PageList />}
+            {activePanelTab === 'brush' && <BrushSettingsPanel />}
           </div>
         }
         right={
