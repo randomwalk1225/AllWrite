@@ -3,7 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electron', {
-  // Save image file to downloads/icannote_img folder
+  // Save image file to downloads/allwrite_img folder
   saveImage: (dataUrl: string, filename: string) =>
     ipcRenderer.invoke('save-image', dataUrl, filename),
   // Open transparent writing window

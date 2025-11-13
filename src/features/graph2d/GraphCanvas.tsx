@@ -1475,7 +1475,7 @@ export function GraphCanvas() {
     saveCounterRef.current += 1
     const counter = String(saveCounterRef.current).padStart(3, '0')
 
-    return `IcanNote_${year}${month}${day}_${hours}${minutes}${seconds}_${counter}.png`
+    return `AllWrite_${year}${month}${day}_${hours}${minutes}${seconds}_${counter}.png`
   }
 
   // Save graph to file as PNG
@@ -1502,7 +1502,7 @@ export function GraphCanvas() {
 
       // Check if running in Electron
       if (window.electron) {
-        // Use Electron IPC to save directly to Downloads/icannote_img
+        // Use Electron IPC to save directly to Downloads/allwrite_img
         const dataUrl = canvas.toDataURL('image/png')
         const filename = generateFilename()
 
