@@ -5,7 +5,7 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && electron-builder",
+    "build": "vite build && electron-builder",
     "preview": "vite preview",
     "electron:dev": "vite --port 5173",
     "electron:build": "vite build && electron-builder"
@@ -19,7 +19,7 @@
     "notebook",
     "visualization"
   ],
-  "author": "AllWrite Team",
+  "author": "Binary",
   "license": "MIT",
   "devDependencies": {
     "@types/react": "^18.2.43",
