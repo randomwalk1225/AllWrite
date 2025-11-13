@@ -19,7 +19,7 @@
     "notebook",
     "visualization"
   ],
-  "author": "Binary",
+  "author": "Binary <randomwalk1225@gmail.com>",
   "license": "MIT",
   "devDependencies": {
     "@types/react": "^18.2.43",
