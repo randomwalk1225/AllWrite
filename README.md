@@ -1,132 +1,254 @@
-# IcanNote 📐✏️
+# AllWrite 2.0 📐✨
 
-**Your intelligent math notebook with powerful graphing and visualization**
+**AllWrite 2.0**은 수학 교육을 위한 강력한 대화형 기하학 및 그래프 도구입니다. 실시간 기하학 작도, 수식 입력, 그래프 그리기 기능을 제공하며, 점과 도형이 완벽하게 동기화되어 직관적인 수학 학습 경험을 제공합니다.
 
-IcanNote is a modern, intuitive mathematical notation and graphing application that combines the power of a scientific calculator, graphing tool, and digital notebook into one seamless experience.
+## ✨ 주요 기능
 
-## ✨ Features
+### 📐 기하학 도구
 
-### 📊 Advanced Graphing
-- **Interactive 2D Graphing**: Plot cartesian functions (y = f(x)), implicit functions, and parametric curves
-- **Intelligent Intersection Detection**: Automatically detect and mark intersection points with smart snapping
-- **Multiple Function Support**: Graph multiple functions simultaneously with customizable colors
-- **Zoom and Pan**: Smooth navigation with mouse/trackpad gestures
+#### 점 (Point)
+- **고정점**: 자유롭게 배치 가능한 독립 점
+- **중점**: 두 점의 중점 자동 계산
+- **내분점**: 두 점을 m:n으로 내분하는 점
+- **제약점**: 선, 원, 다각형 위에 구속된 점
 
-### ✍️ Natural Math Input
-- **LaTeX Support**: Write mathematical expressions naturally using LaTeX syntax
-- **MathLive Integration**: Beautiful, interactive math equation editor
-- **Real-time Evaluation**: Instant calculation results for numerical expressions
+#### 선 (Line)
+- **선분 (Segment)**: 두 점을 연결하는 선분
+- **반직선 (Ray)**: 한 점에서 시작하여 한 방향으로 무한히 연장
+- **직선 (Line)**: 양방향으로 무한히 연장되는 직선
+- 점을 드래그하면 선도 실시간으로 변형
 
-### 🎨 Drawing and Annotation
-- **Freehand Drawing**: Pen tool for annotations and sketches
-- **Highlighter Tool**: Emphasize important parts of your work
-- **Eraser Tool**: Clean up your canvas with precision
-- **Image Support**: Paste and manipulate images on your canvas
+#### 원 (Circle)
+- **중심-반지름 방식**: 중심점과 반지름점으로 정의
+- **지름 방식**: 지름의 두 끝점으로 정의
+- **세 점을 지나는 원**: 세 점을 모두 지나는 외접원
+- 제어점 드래그로 실시간 크기 조절
 
-### 📍 Point Management
-- **Automatic Labeling**: Points automatically labeled A, B, C... for easy reference
-- **Multiple Display Modes**:
-  - Show function names
-  - Show points only
-  - Show points with names (A, B, C...)
-  - Show points with coordinates
-- **Coordinate Snapping**: Intelligent snapping to special values (integers, fractions, π, √2, etc.)
+#### 다각형 (Polygon)
 
-### 🔄 History and State
-- **Undo/Redo**: Full support for undo/redo operations including view state
-- **Expression Management**: Organize multiple expressions with drag-and-drop reordering
+##### 정다각형
+- 3각형 ~ 12각형 지원
+- 중심점과 반지름점으로 정의
+- **중심점 드래그**: 전체 이동 (반지름점도 함께)
+- **반지름점 드래그**: 크기와 회전 변경
 
-### 🎨 Customization
-- **Color Palette**: 12 carefully selected colors with high and low saturation variants
-- **Grid Modes**: Choose between grid, axes, both, or clean white background
-- **View Options**: Customize what information is displayed on your graph
+##### 특수 다각형
+모든 특수 다각형은 2개의 제어점으로 정의되며, 기하학적 특성을 유지하면서 실시간으로 변형됩니다:
 
-## 🚀 Getting Started
+- **직사각형 (Rectangle)**: 대각선의 두 끝점으로 정의
+- **정사각형 (Square)**: 한 변의 두 끝점으로 정의
+- **평행사변형 (Parallelogram)**: 한 변의 두 끝점으로 정의 (60도 고정)
+- **마름모 (Rhombus)**: 한 대각선의 두 끝점으로 정의
+- **연 (Kite)**: 대칭축의 두 끝점으로 정의
+- **직각삼각형 (Right Triangle)**: 빗변의 두 끝점으로 정의
 
-### Installation
+##### 자유 다각형
+- 클릭하여 꼭짓점 추가
+- 첫 번째 점 다시 클릭으로 완성
+- 각 꼭짓점을 개별적으로 드래그 가능
+
+### ✨ 실시간 동기화의 핵심
+
+**점과 도형의 완벽한 일대일 대응**이 AllWrite 2.0의 가장 큰 특징입니다:
+
+- 점을 드래그하면 **연결된 모든 도형이 실시간으로 변형**
+- 정다각형의 중심점을 이동하면 **전체 도형이 이동** (반지름점도 함께)
+- 정다각형의 반지름점을 이동하면 **크기와 회전이 변경**
+- 마름모의 대각선 끝점을 이동하면 **마름모 특성을 유지하며 변형**
+- 정사각형의 변 끝점을 이동하면 **정사각형을 유지하며 크기/회전 변경**
+- 모든 변형이 **드래그하는 동안에도 실시간 애니메이션**으로 표시
+
+### 📊 그래프 및 캔버스 기능
+
+- **무한 캔버스**: 제한 없이 자유롭게 작업
+- **팬/줌**: 마우스 휠로 확대/축소, 드래그로 이동
+- **좌표 평면**: 그리드와 축 표시
+- **자유 드로잉**: 펜 도구로 자유롭게 그리기
+- **지우개**: 선택적 삭제
+- **선택 도구**: 클릭, 사각 선택, 올가미 선택
+- **복사/붙여넣기**: Ctrl+C / Ctrl+V
+
+### 🎨 렌더링 모드
+
+- **외곽선 (Stroke)**: 도형의 외곽선만 표시
+- **채우기 (Fill)**: 도형을 색으로 채움
+- **혼합 (Multiply)**: 겹치는 영역의 색상 혼합
+
+### 👁️ 점 표시 모드
+
+- **항상 표시**: 모든 점 표시
+- **선택 시만**: 선택된 점만 표시
+- **숨김**: 점 숨김
+
+## 📥 다운로드
+
+### Windows 설치 파일 (.exe)
+
+1. **[Releases](../../releases)** 페이지로 이동
+2. 최신 버전의 **`AllWrite2-Setup-{version}.exe`** 다운로드
+3. 다운로드한 파일 실행하여 설치
+4. 설치 완료 후 바탕화면 또는 시작 메뉴에서 **AllWrite 2.0** 실행
+
+## 🎯 사용 방법
+
+### 기본 조작
+
+| 작업 | 방법 |
+|------|------|
+| **줌 인/아웃** | 마우스 휠 |
+| **캔버스 이동** | 스페이스바 + 드래그 |
+| **도구 선택** | 왼쪽 도구 패널 클릭 |
+| **도형 선택** | 선택 도구로 클릭 또는 드래그 |
+| **다중 선택** | Shift + 클릭 |
+| **복사** | Ctrl + C |
+| **붙여넣기** | Ctrl + V |
+| **삭제** | Delete 키 |
+| **실행 취소** | Ctrl + Z |
+| **다시 실행** | Ctrl + Y |
+
+### 도형 그리기 워크플로우
+
+#### 1. 정다각형 (예: 정육각형)
+1. **도형 탭** 클릭
+2. **정다각형** 버튼 클릭
+3. 캔버스에서 중심 위치 클릭
+4. 드래그하여 크기와 회전 결정
+5. 대화상자에서 **6** 입력 (육각형)
+6. **확인** 클릭
+
+**드래그하여 조작**:
+- 중심점 드래그 → 전체 이동
+- 반지름점 드래그 → 크기와 회전 변경
+
+#### 2. 마름모
+1. **도형 탭** → **마름모** 선택
+2. 한 대각선의 끝점 클릭
+3. 드래그하여 다른 대각선 끝점 결정
+4. 마우스 버튼 놓기
+
+**드래그하여 조작**:
+- 대각선 끝점을 드래그하면 마름모가 실시간으로 변형
+
+#### 3. 원 (중심-반지름)
+1. **도형 탭** → **원** → **중심-반지름** 선택
+2. 중심 위치 클릭
+3. 드래그하여 반지름 결정
+4. 마우스 버튼 놓기
+
+**드래그하여 조작**:
+- 중심점 드래그 → 원 이동
+- 반지름점 드래그 → 원 크기 변경
+
+#### 4. 자유 다각형 (예: 오각형)
+1. **도형 탭** → **다각형** 선택
+2. 첫 번째 꼭짓점 클릭
+3. 두 번째, 세 번째... 꼭짓점 순서대로 클릭
+4. 다섯 번째 꼭짓점 클릭 후 **첫 번째 점 다시 클릭** 또는 **Enter** 키
+
+**드래그하여 조작**:
+- 각 꼭짓점을 개별적으로 드래그 가능
+
+### 고급 기능
+
+#### 중점 만들기
+1. 두 점 A, B 생성
+2. **도형 탭** → **점** → **중점** 선택
+3. A 클릭 → B 클릭
+4. 중점 M이 자동으로 생성되고 A나 B를 움직이면 M도 자동으로 따라감
+
+#### 내분점 만들기
+1. 두 점 A, B 생성
+2. **도형 탭** → **점** → **내분점** 선택
+3. A 클릭 → B 클릭
+4. 비율 입력 (예: m=2, n=3)
+5. 내분점이 A와 B를 2:3으로 내분하는 위치에 생성
+
+#### 원 위의 점
+1. 원 생성
+2. **도형 탭** → **점** → **구속점** 선택
+3. 원 클릭
+4. 점이 원 위에 구속되어 생성
+5. 점을 드래그하면 원 위에서만 이동
+
+## 🛠️ 개발 및 빌드
+
+### 개발 환경 설정
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/icannote.git
-
-# Navigate to project directory
-cd icannote
-
-# Install dependencies
+# 의존성 설치
 npm install
 
-# Start development server
+# 개발 서버 실행
 npm run dev
 ```
 
-### Build
+브라우저에서 `http://localhost:5173` 접속
+
+### Windows 실행 파일 빌드
 
 ```bash
-# Build for production
+# 프로덕션 빌드 및 설치 파일 생성
 npm run build
-
-# Build electron app
-npm run electron:build
 ```
 
-## 🛠️ Technology Stack
+빌드 완료 후 `release/` 폴더에서 생성물 확인:
+- `AllWrite2-Setup-{version}.exe` - Windows 설치 파일
 
-- **React** - UI framework
-- **TypeScript** - Type-safe development
-- **Vite** - Fast build tool
-- **Electron** - Desktop application framework
-- **MathLive** - Math input editor
-- **KaTeX** - Math rendering
-- **Math.js** - Mathematical expression evaluation
-- **Konva** - Canvas drawing library
-- **Zustand** - State management
+## 🔧 기술 스택
 
-## 📝 Usage Examples
+### 프레임워크 및 라이브러리
+- **Electron** - 데스크톱 애플리케이션
+- **React** - UI 프레임워크
+- **TypeScript** - 타입 안전성
+- **Vite** - 빠른 빌드 도구
 
-### Graphing Functions
-```
-y = x^2
-y = sin(x)
-y = 2x + 3
-x^2 + y^2 = 25
-```
+### 렌더링 및 그래픽
+- **Konva / React-Konva** - 2D 캔버스 렌더링
+- **Perfect Freehand** - 자연스러운 펜 스트로크
 
-### Finding Intersections
-1. Enter two or more functions
-2. Click near the intersection point
-3. IcanNote automatically detects and labels the intersection
+### 수학 및 기하학
+- **Math.js** - 수학 계산 엔진
+- **Algebrite** - 대수 연산
+- **KaTeX / MathLive** - 수학 수식 렌더링
 
-### Calculator Mode
-Simply enter numerical expressions:
-```
-2 + 3
-sqrt(16)
-pi * 2
-```
+### 상태 관리
+- **Zustand** - 경량 상태 관리
 
-## 🎯 Roadmap
+### 유틸리티
+- **html2canvas** - 스크린샷
+- **jsPDF** - PDF 내보내기
+- **culori** - 색상 처리
+- **immer** - 불변 상태 업데이트
 
-- [ ] 3D graphing support
-- [ ] Symbolic computation (derivatives, integrals)
-- [ ] Export to PDF/PNG
-- [ ] Cloud sync and sharing
-- [ ] Mobile app version
-- [ ] Collaborative editing
+## 🎓 교육적 가치
 
-## 📄 License
+AllWrite 2.0은 다음과 같은 교육 목표를 지원합니다:
 
-MIT License - see LICENSE file for details
+- **직관적 이해**: 점을 움직이면 도형이 따라오는 실시간 피드백으로 기하학적 관계 이해
+- **탐구 학습**: 자유롭게 도형을 변형하며 패턴과 관계 발견
+- **정확한 작도**: 제약 조건을 활용한 정확한 기하학 작도
+- **시각화**: 복잡한 수학 개념을 시각적으로 표현
 
-## 🤝 Contributing
+## 📄 라이선스
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+MIT License
 
-## 💬 Support
+## 🤝 기여
 
-For questions, issues, or feature requests, please open an issue on GitHub.
+이슈 및 풀 리퀘스트를 환영합니다!
+
+1. 이 저장소를 Fork
+2. 새 브랜치 생성 (`git checkout -b feature/amazing-feature`)
+3. 변경사항 커밋 (`git commit -m 'Add amazing feature'`)
+4. 브랜치에 Push (`git push origin feature/amazing-feature`)
+5. Pull Request 생성
+
+## 💬 지원
+
+질문, 이슈, 기능 요청은 GitHub Issues에 등록해주세요.
 
 ---
 
-**Made with ❤️ by the IcanNote Team**
+**AllWrite 2.0** - 수학을 더 직관적으로, 더 재미있게! 🎓✨
 
-*Empowering students, educators, and professionals to visualize and understand mathematics better.*
+*점과 도형의 완벽한 동기화로 기하학의 아름다움을 경험하세요.*
