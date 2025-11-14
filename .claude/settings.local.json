@@ -4,7 +4,9 @@
       "Bash(npm run build:*)",
       "Bash(git add:*)",
       "Bash(git commit -m \"$(cat <<''EOF''\nAdd multi-platform support and update documentation\n\n- Added macOS build configuration to package.json (dmg, zip)\n- Updated README.md with platform-specific download sections (Windows/Mac)\n- Added developer contact information (Binary - randomwalk1225@gmail.com)\n- Clarified build instructions for both Windows and macOS\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
-      "Bash(git commit -m \"$(cat <<''EOF''\nOptimize pen drawing performance with RAF throttling\n\nPerformance improvements:\n- Added requestAnimationFrame pattern for drawing (like image dragging)\n- Reduced rendering from 120+ fps to 60 fps max\n- Optimized Perfect-freehand settings:\n  * smoothing: 0.8 → 0.5 (better responsiveness)\n  * streamline: 0.3 → 0.15 (reduced lag)\n- Increased distance threshold: 0.01 → 0.05 (fewer points)\n- Cancel RAF on mouse up to prevent orphaned frames\n\nExpected results:\n- Pen strokes now keep up with drawing speed\n- More natural, responsive feel\n- Reduced React re-renders by ~50%\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
+      "Bash(git commit -m \"$(cat <<''EOF''\nOptimize pen drawing performance with RAF throttling\n\nPerformance improvements:\n- Added requestAnimationFrame pattern for drawing (like image dragging)\n- Reduced rendering from 120+ fps to 60 fps max\n- Optimized Perfect-freehand settings:\n  * smoothing: 0.8 → 0.5 (better responsiveness)\n  * streamline: 0.3 → 0.15 (reduced lag)\n- Increased distance threshold: 0.01 → 0.05 (fewer points)\n- Cancel RAF on mouse up to prevent orphaned frames\n\nExpected results:\n- Pen strokes now keep up with drawing speed\n- More natural, responsive feel\n- Reduced React re-renders by ~50%\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []

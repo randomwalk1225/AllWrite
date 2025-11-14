@@ -90,6 +90,8 @@ let currentTool = 'none'
 let tempCanvas = null
 let captureMode = false
 let currentPoints = [] // For Perfect Freehand
+let drawingRenderFrame = null // For RAF throttling
+let pendingDrawingUpdate = false
 
 // Brush stabilizer instance
 // Disabled for better real-time responsiveness in writing window
@@ -315,7 +317,7 @@ function startDrawing(e) {
 
   // Initialize points array for pen and highlighter
   if (currentTool === 'pen' || currentTool === 'highlighter') {
-    currentPoints = []
+    currentPoints = [[e.clientX, e.clientY, 0.5]] // Start with first point
     // Start brush stabilizer (currently disabled for better responsiveness)
     brushStabilizer.startStroke()
     console.log('Initialized points for pen/highlighter')
@@ -329,40 +331,66 @@ function draw(e) {
   const y = e.clientY
 
   if (currentTool === 'pen' || currentTool === 'highlighter') {
-    // Add point directly without stabilizer for better real-time responsiveness
-    currentPoints.push([x, y, 0.5])
-
-    // Use Perfect Freehand to generate smooth stroke (same as main graph)
+    // Only add point if it's far enough from the last point (reduces points)
     if (currentPoints.length > 0) {
-      const size = currentSize
+      const lastPoint = currentPoints[currentPoints.length - 1]
+      const dx = x - lastPoint[0]
+      const dy = y - lastPoint[1]
+      const distance = Math.sqrt(dx * dx + dy * dy)
 
-      const stroke = getStroke(currentPoints, {
-        size: size,
-        thinning: 0,
-        smoothing: 0.8,
-        streamline: 0.3,
-        easing: (t) => t,
-        start: { taper: 0, cap: true },
-        end: { taper: 0, cap: true },
+      // Skip if too close (same threshold as main graph)
+      if (distance < 3) return // ~3 pixels minimum distance
+    }
+
+    // Add point to array
+    currentPoints.push([x, y, 0.5])
+    pendingDrawingUpdate = true
+
+    // Use requestAnimationFrame to throttle rendering (same as main graph)
+    if (drawingRenderFrame === null) {
+      drawingRenderFrame = requestAnimationFrame(() => {
+        if (!pendingDrawingUpdate) {
+          drawingRenderFrame = null
+          return
+        }
+
+        // Use Perfect Freehand to generate smooth stroke
+        if (currentPoints.length > 1) {
+          const size = currentSize
+
+          // Optimized settings matching main graph (0.5 smoothing, 0.15 streamline)
+          const stroke = getStroke(currentPoints, {
+            size: size,
+            thinning: 0,
+            smoothing: 0.5,  // Reduced from 0.8 for better responsiveness
+            streamline: 0.15,  // Reduced from 0.3 to minimize lag
+            easing: (t) => t,
+            start: { taper: 0, cap: true },
+            end: { taper: 0, cap: true },
+          })
+
+          const pathData = getSvgPathFromStroke(stroke)
+
+          // Clear and redraw entire stroke
+          if (tempCanvas) {
+            ctx.putImageData(tempCanvas, 0, 0)
+          }
+
+          // Apply transparency for highlighter using fillStyle (like main graph)
+          if (currentTool === 'highlighter') {
+            ctx.save()
+            ctx.fillStyle = hexToRgba(currentColor, 0.3)
+            const p = new Path2D(pathData)
+            ctx.fill(p)
+            ctx.restore()
+          } else {
+            drawStrokePath(pathData, currentColor, 1.0)
+          }
+        }
+
+        pendingDrawingUpdate = false
+        drawingRenderFrame = null
       })
-
-      const pathData = getSvgPathFromStroke(stroke)
-
-      // Clear and redraw entire stroke
-      if (tempCanvas) {
-        ctx.putImageData(tempCanvas, 0, 0)
-      }
-
-      // Apply transparency for highlighter using fillStyle (like main graph)
-      if (currentTool === 'highlighter') {
-        ctx.save()
-        ctx.fillStyle = hexToRgba(currentColor, 0.3)
-        const p = new Path2D(pathData)
-        ctx.fill(p)
-        ctx.restore()
-      } else {
-        drawStrokePath(pathData, currentColor, 1.0)
-      }
     }
 
     lastX = x
@@ -401,6 +429,13 @@ function draw(e) {
 function stopDrawing(e) {
   if (!isDrawing || captureMode) return
 
+  // Cancel any pending RAF for drawing
+  if (drawingRenderFrame !== null) {
+    cancelAnimationFrame(drawingRenderFrame)
+    drawingRenderFrame = null
+    pendingDrawingUpdate = false
+  }
+
   // Get remaining stabilized points when finishing stroke
   if (currentTool === 'pen' || currentTool === 'highlighter') {
     const remainingPoints = brushStabilizer.endStroke()
@@ -410,15 +445,15 @@ function stopDrawing(e) {
       currentPoints.push([point.x, point.y, point.pressure || 0.5])
     }
 
-    // Redraw final stroke with all points
+    // Redraw final stroke with all points using optimized settings
     if (currentPoints.length > 1 && tempCanvas) {
       const size = currentSize
 
       const stroke = getStroke(currentPoints, {
         size: size,
         thinning: 0,
-        smoothing: 0.8,
-        streamline: 0.3,
+        smoothing: 0.5,  // Optimized setting
+        streamline: 0.15,  // Optimized setting
         easing: (t) => t,
         start: { taper: 0, cap: true },
         end: { taper: 0, cap: true },
