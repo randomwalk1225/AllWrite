@@ -47,7 +47,7 @@
     }
 
     #canvas.line-cursor {
-      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><text x="0" y="20" font-size="20">📏</text></svg>') 4 12, auto;
+      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><line x1="2" y1="22" x2="22" y2="2" stroke="%23333" stroke-width="2"/></svg>') 12 12, auto;
     }
 
     #canvas.rectangle-cursor {
@@ -308,8 +308,13 @@
     <button class="tool-button" id="penBtn" onclick="setTool('pen')" title="펜">✏️</button>
     <button class="tool-button" id="highlighterBtn" onclick="setTool('highlighter')" title="형광펜">🖍️</button>
     <button class="tool-button" id="arrowBtn" onclick="setTool('arrow')" title="화살표">➜</button>
-    <button class="tool-button" id="lineBtn" onclick="setTool('line')" title="직선">📏</button>
+    <button class="tool-button" id="lineBtn" onclick="setTool('line')" title="직선">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <line x1="4" y1="20" x2="20" y2="4" stroke="#333" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
     <button class="tool-button" id="rectangleBtn" onclick="setTool('rectangle')" title="사각형">▢</button>
+    <button class="tool-button" id="textBtn" onclick="setTool('text')" title="텍스트" style="font-size: 20px; font-weight: bold;">T</button>
     <button class="tool-button" id="eraserBtn" onclick="setTool('eraser')" title="지우개">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M16.24 3.56l4.2 4.2-10.8 10.8-4.2-4.2 10.8-10.8z" fill="#7BB4E8"/>
@@ -426,6 +431,8 @@
     let tempCanvas = null
     let captureMode = false
     let currentPoints = [] // For Perfect Freehand
+    let drawingRenderFrame = null // For RAF throttling
+    let pendingDrawingUpdate = false
 
     // Perfect Freehand helper functions
     const { getStroke } = window.perfectFreehand || {}
@@ -538,6 +545,7 @@
         'arrow': 'arrowBtn',
         'line': 'lineBtn',
         'rectangle': 'rectangleBtn',
+        'text': 'textBtn',
         'eraser': 'eraserBtn'
       }
 
@@ -564,6 +572,17 @@
 
       if (captureMode || currentTool === 'none') {
         console.log('startDrawing blocked - captureMode or tool is none')
+        return
+      }
+
+      // Handle text tool - prompt for text input
+      if (currentTool === 'text') {
+        const text = prompt('텍스트를 입력하세요:')
+        if (text) {
+          ctx.font = `${currentSize * 10}px Arial`
+          ctx.fillStyle = currentColor
+          ctx.fillText(text, e.clientX, e.clientY)
+        }
         return
       }
 
@@ -596,40 +615,57 @@
       if (currentTool === 'pen' || currentTool === 'highlighter') {
         // Add point to array
         currentPoints.push([x, y, 0.5])
+        pendingDrawingUpdate = true
 
-        // Use Perfect Freehand to generate smooth stroke
-        if (getStroke && currentPoints.length > 1) {
-          // Use same size for both pen and highlighter (like main graph)
-          const size = currentSize
+        // Use requestAnimationFrame to throttle rendering (same as main graph)
+        if (drawingRenderFrame === null) {
+          drawingRenderFrame = requestAnimationFrame(() => {
+            if (!pendingDrawingUpdate) {
+              drawingRenderFrame = null
+              return
+            }
 
-          const stroke = getStroke(currentPoints, {
-            size: size,
-            thinning: 0,
-            smoothing: 0.8,
-            streamline: 0.3,
-            easing: (t) => t,
-            start: { taper: 0, cap: true },
-            end: { taper: 0, cap: true },
+            // Use Perfect Freehand to generate smooth stroke
+            if (getStroke && currentPoints.length > 1) {
+              const size = currentSize
+
+              // Optimized settings matching main graph (0.5 smoothing, 0.15 streamline)
+              const stroke = getStroke(currentPoints, {
+                size: size,
+                thinning: 0,
+                smoothing: 0.5,  // Reduced from 0.8 for better responsiveness
+                streamline: 0.15,  // Reduced from 0.3 to minimize lag
+                easing: (t) => t,
+                start: { taper: 0, cap: true },
+                end: { taper: 0, cap: true },
+              })
+
+              const pathData = getSvgPathFromStroke(stroke)
+
+              // Clear and redraw entire stroke
+              if (tempCanvas) {
+                ctx.putImageData(tempCanvas, 0, 0)
+              }
+
+              // Apply transparency for highlighter using fillStyle (like main graph)
+              if (currentTool === 'highlighter') {
+                ctx.save()
+                ctx.fillStyle = hexToRgba(currentColor, 0.3)
+                const p = new Path2D(pathData)
+                ctx.fill(p)
+                ctx.restore()
+              } else {
+                drawStrokePath(pathData, currentColor, 1.0)
+              }
+            }
+
+            pendingDrawingUpdate = false
+            drawingRenderFrame = null
           })
+        }
 
-          const pathData = getSvgPathFromStroke(stroke)
-
-          // Clear and redraw entire stroke
-          if (tempCanvas) {
-            ctx.putImageData(tempCanvas, 0, 0)
-          }
-
-          // Apply transparency for highlighter using fillStyle (like main graph)
-          if (currentTool === 'highlighter') {
-            ctx.save()
-            ctx.fillStyle = hexToRgba(currentColor, 0.3)
-            const p = new Path2D(pathData)
-            ctx.fill(p)
-            ctx.restore()
-          } else {
-            drawStrokePath(pathData, currentColor, 1.0)
-          }
-        } else {
+        // Fallback when RAF is not triggered yet
+        if (!getStroke || currentPoints.length <= 1) {
           // Fallback: simple drawing when Perfect Freehand is not available
           console.log('Using fallback drawing method')
 
@@ -711,6 +747,14 @@
       if (!isDrawing || captureMode) return
 
       isDrawing = false
+
+      // Cancel any pending RAF for drawing
+      if (drawingRenderFrame !== null) {
+        cancelAnimationFrame(drawingRenderFrame)
+        drawingRenderFrame = null
+        pendingDrawingUpdate = false
+      }
+
       tempCanvas = null
       currentPoints = []
     }
