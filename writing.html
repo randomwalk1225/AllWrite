@@ -613,19 +613,26 @@
       const y = e.clientY
 
       if (currentTool === 'pen' || currentTool === 'highlighter') {
-        // Only add point if it's far enough from the last point (reduces points)
+        // Check distance to last point
+        let shouldAddPoint = true
         if (currentPoints.length > 0) {
           const lastPoint = currentPoints[currentPoints.length - 1]
           const dx = x - lastPoint[0]
           const dy = y - lastPoint[1]
           const distance = Math.sqrt(dx * dx + dy * dy)
 
-          // Skip if too close (same threshold as main graph)
-          if (distance < 3) return // ~3 pixels minimum distance
+          // Skip adding point if too close, but still trigger RAF to render existing points
+          if (distance < 2) { // Reduced from 3 for smoother strokes
+            shouldAddPoint = false
+          }
         }
 
-        // Add point to array
-        currentPoints.push([x, y, 0.5])
+        // Add point to array if far enough
+        if (shouldAddPoint) {
+          currentPoints.push([x, y, 0.5])
+        }
+
+        // Always request RAF even if we didn't add a point (to render pending points)
         pendingDrawingUpdate = true
 
         // Use requestAnimationFrame to throttle rendering (same as main graph)
