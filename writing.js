@@ -348,6 +348,31 @@ function draw(e) {
     // Add point to array if far enough
     if (shouldAddPoint) {
       currentPoints.push([x, y, 0.5])
+
+      // Immediate fallback rendering for very first points to avoid gaps
+      if (currentPoints.length <= 3 && tempCanvas) {
+        // Draw simple line for first few points
+        ctx.strokeStyle = currentTool === 'highlighter' ? hexToRgba(currentColor, 0.3) : currentColor
+        ctx.lineWidth = currentSize
+        ctx.lineCap = 'round'
+        ctx.lineJoin = 'round'
+
+        if (currentPoints.length === 2) {
+          // Draw line from first to second point
+          ctx.beginPath()
+          ctx.moveTo(currentPoints[0][0], currentPoints[0][1])
+          ctx.lineTo(currentPoints[1][0], currentPoints[1][1])
+          ctx.stroke()
+        } else if (currentPoints.length > 2) {
+          // Draw line from second-to-last to last point
+          const prev = currentPoints[currentPoints.length - 2]
+          const curr = currentPoints[currentPoints.length - 1]
+          ctx.beginPath()
+          ctx.moveTo(prev[0], prev[1])
+          ctx.lineTo(curr[0], curr[1])
+          ctx.stroke()
+        }
+      }
     }
 
     // Always request RAF even if we didn't add a point (to render pending points)
@@ -362,7 +387,7 @@ function draw(e) {
         }
 
         // Use Perfect Freehand to generate smooth stroke
-        if (currentPoints.length > 1) {
+        if (currentPoints.length > 0) {  // Changed from > 1 to > 0
           const size = currentSize
 
           // Optimized settings matching main graph (0.5 smoothing, 0.15 streamline)
@@ -393,6 +418,13 @@ function draw(e) {
           } else {
             drawStrokePath(pathData, currentColor, 1.0)
           }
+        } else if (currentPoints.length === 1) {
+          // Fallback: Draw first point immediately
+          const point = currentPoints[0]
+          ctx.fillStyle = currentTool === 'highlighter' ? hexToRgba(currentColor, 0.3) : currentColor
+          ctx.beginPath()
+          ctx.arc(point[0], point[1], currentSize / 2, 0, Math.PI * 2)
+          ctx.fill()
         }
 
         pendingDrawingUpdate = false

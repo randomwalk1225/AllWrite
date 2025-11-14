@@ -191,6 +191,7 @@ function createWritingWindow(mainWindow: BrowserWindow) {
 
   if (isDev) {
     writingWindow.loadURL('http://localhost:5173/writing.html')
+    // writingWindow.webContents.openDevTools()
   } else {
     writingWindow.loadFile(path.join(__dirname, '../dist/writing.html'))
   }
@@ -247,6 +248,17 @@ ipcMain.handle('set-ignore-mouse-events', async (event, ignore: boolean) => {
 // IPC handler for capturing screen
 ipcMain.handle('capture-screen', async () => {
   try {
+    // Temporarily hide the writing window to capture what's underneath
+    let wasVisible = false
+    if (writingWindow && !writingWindow.isDestroyed()) {
+      wasVisible = writingWindow.isVisible()
+      if (wasVisible) {
+        writingWindow.hide()
+        // Wait a bit for the window to be fully hidden
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
+    }
+
     // Get all displays
     const displays = screen.getAllDisplays()
 
@@ -273,21 +285,32 @@ ipcMain.handle('capture-screen', async () => {
 
     console.log('Available sources:', sources.map(s => s.name))
 
+    let result = null
+
     // desktopCapturer returns sources in the same order as screen.getAllDisplays()
     if (sources.length > displayIndex) {
       console.log('Using source:', sources[displayIndex].name)
-      return sources[displayIndex].thumbnail.toDataURL()
-    }
-
-    // Fallback to first source
-    if (sources.length > 0) {
+      result = sources[displayIndex].thumbnail.toDataURL()
+    } else if (sources.length > 0) {
+      // Fallback to first source
       console.log('Fallback to first source:', sources[0].name)
-      return sources[0].thumbnail.toDataURL()
+      result = sources[0].thumbnail.toDataURL()
     }
 
-    return null
+    // Restore the writing window visibility
+    if (writingWindow && !writingWindow.isDestroyed() && wasVisible) {
+      writingWindow.show()
+    }
+
+    return result
   } catch (error) {
     console.error('Failed to capture screen:', error)
+
+    // Make sure to restore window visibility even on error
+    if (writingWindow && !writingWindow.isDestroyed()) {
+      writingWindow.show()
+    }
+
     return null
   }
 })

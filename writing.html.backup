@@ -77,7 +77,6 @@
       cursor: move;
       user-select: none;
       transition: flex-direction 0.2s;
-      pointer-events: auto;
     }
 
     .toolbar.vertical {
@@ -101,7 +100,6 @@
       justify-content: center;
       transition: all 0.2s;
       position: relative;
-      pointer-events: auto;
     }
 
     .tool-button:hover {
@@ -233,14 +231,8 @@
   <div id="toast" class="toast"></div>
 
   <div class="toolbar horizontal">
-    <!-- Capture button with menu -->
-    <div style="position: relative;">
-      <button class="tool-button" id="captureBtn" title="화면 캡처">📸</button>
-      <div id="captureMenu" style="position: absolute; top: 100%; right: 0; margin-top: 4px; background: white; border: 2px solid #333; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: none; flex-direction: column; z-index: 10000; min-width: 150px;">
-        <button id="fullCaptureBtn" style="padding: 10px 16px; border: none; background: white; text-align: left; cursor: pointer; font-size: 14px; border-radius: 6px 6px 0 0;">전체 캡처</button>
-        <button id="regionCaptureBtn" style="padding: 10px 16px; border: none; background: white; text-align: left; cursor: pointer; font-size: 14px; border-radius: 0 0 6px 6px;">영역 캡처</button>
-      </div>
-    </div>
+    <!-- Capture button -->
+    <button class="tool-button" id="captureBtn" title="화면 캡처 (Ctrl+S)">📸</button>
 
     <!-- Drawing tools -->
     <button class="tool-button" id="penBtn" onclick="setTool('pen')" title="펜">✏️</button>
@@ -252,6 +244,7 @@
       </svg>
     </button>
     <button class="tool-button" id="rectangleBtn" onclick="setTool('rectangle')" title="사각형">▢</button>
+    <button class="tool-button" id="textBtn" onclick="setTool('text')" title="텍스트" style="font-size: 20px; font-weight: bold;">T</button>
     <button class="tool-button" id="eraserBtn" onclick="setTool('eraser')" title="지우개">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M16.24 3.56l4.2 4.2-10.8 10.8-4.2-4.2 10.8-10.8z" fill="#7BB4E8"/>
@@ -294,9 +287,6 @@
     const sizeDisplay = document.getElementById('sizeDisplay')
     const toolbar = document.querySelector('.toolbar')
     const captureBtn = document.getElementById('captureBtn')
-    const captureMenu = document.getElementById('captureMenu')
-    const fullCaptureBtn = document.getElementById('fullCaptureBtn')
-    const regionCaptureBtn = document.getElementById('regionCaptureBtn')
     const toast = document.getElementById('toast')
 
     // Toast notification function
@@ -368,6 +358,7 @@
     let eraserSize = 20
     let currentTool = 'none'
     let tempCanvas = null
+    let captureMode = false
     let currentPoints = [] // For Perfect Freehand
     let drawingRenderFrame = null // For RAF throttling
     let pendingDrawingUpdate = false
@@ -416,7 +407,8 @@
 
     // Update mouse event passthrough based on tool state
     function updateMouseEvents() {
-      const shouldIgnore = currentTool === 'none'
+      // captureMode일 때는 항상 마우스 이벤트를 받아야 함 (ignore = false)
+      const shouldIgnore = currentTool === 'none' && !captureMode
       if (window.electron?.setIgnoreMouseEvents) {
         window.electron.setIgnoreMouseEvents(shouldIgnore)
       }
@@ -438,6 +430,16 @@
       updateMouseEvents()
     })
 
+    // Capture menu mouse events
+    captureMenu.addEventListener('mouseenter', () => {
+      if (window.electron?.setIgnoreMouseEvents) {
+        window.electron.setIgnoreMouseEvents(false)
+      }
+    })
+
+    captureMenu.addEventListener('mouseleave', () => {
+      updateMouseEvents()
+    })
 
     // Update brush size display
     brushSize.addEventListener('input', (e) => {
@@ -451,19 +453,17 @@
     })
 
     // Tool selection with toggle functionality
-    async function setTool(tool) {
-      await logToFile(`setTool called: ${tool} (current: ${currentTool})`)
-      showToast(`툴 선택: ${tool}`)
+    function setTool(tool) {
+      console.log('setTool called:', tool, '-> current:', currentTool)
 
       // Toggle: if same tool is clicked again, deactivate it
       if (currentTool === tool) {
         currentTool = 'none'
-        showToast('툴 해제')
       } else {
         currentTool = tool
       }
 
-      await logToFile(`Tool changed to: ${currentTool}`)
+      console.log('Tool changed to:', currentTool)
 
       // Update button active states
       document.querySelectorAll('.tool-button').forEach(btn => btn.classList.remove('active'))
@@ -474,6 +474,7 @@
         'arrow': 'arrowBtn',
         'line': 'lineBtn',
         'rectangle': 'rectangleBtn',
+        'text': 'textBtn',
         'eraser': 'eraserBtn'
       }
 
@@ -495,11 +496,22 @@
     }
 
     // Drawing functions
-    async function startDrawing(e) {
-      await logToFile(`startDrawing called, currentTool: ${currentTool}, position: ${e.clientX}, ${e.clientY}`)
+    function startDrawing(e) {
+      console.log('startDrawing called, currentTool:', currentTool, 'captureMode:', captureMode)
 
-      if (currentTool === 'none') {
-        await logToFile('startDrawing blocked - tool is none')
+      if (captureMode || currentTool === 'none') {
+        console.log('startDrawing blocked - captureMode or tool is none')
+        return
+      }
+
+      // Handle text tool - prompt for text input
+      if (currentTool === 'text') {
+        const text = prompt('텍스트를 입력하세요:')
+        if (text) {
+          ctx.font = `${currentSize * 10}px Arial`
+          ctx.fillStyle = currentColor
+          ctx.fillText(text, e.clientX, e.clientY)
+        }
         return
       }
 
@@ -524,7 +536,7 @@
     }
 
     function draw(e) {
-      if (!isDrawing) return
+      if (!isDrawing || captureMode) return
 
       const x = e.clientX
       const y = e.clientY
@@ -679,7 +691,7 @@
     }
 
     function stopDrawing(e) {
-      if (!isDrawing) return
+      if (!isDrawing || captureMode) return
 
       isDrawing = false
 
@@ -730,373 +742,274 @@
     canvas.addEventListener('mouseup', stopDrawing)
     canvas.addEventListener('mouseout', stopDrawing)
 
-    // Text box creation
-    async function createTextBox(x, y) {
-      await logToFile('=== TEXT BOX CREATION ===')
-      await logToFile(`Position: ${x}, ${y}`)
-      await logToFile(`Color: ${currentColor}, Size: ${currentSize}`)
-
-      const textBox = document.createElement('div')
-      textBox.contentEditable = true
-      textBox.style.position = 'fixed'
-      textBox.style.left = x + 'px'
-      textBox.style.top = y + 'px'
-      textBox.style.minWidth = '100px'
-      textBox.style.minHeight = '30px'
-      textBox.style.padding = '5px'
-      textBox.style.border = '2px dashed #666'
-      textBox.style.backgroundColor = 'rgba(255, 255, 255, 0.9)'
-      textBox.style.color = currentColor
-      textBox.style.fontSize = (currentSize * 5) + 'px'
-      textBox.style.fontFamily = 'Arial, sans-serif'
-      textBox.style.outline = 'none'
-      textBox.style.zIndex = '9998'
-      textBox.style.cursor = 'text'
-      textBox.style.whiteSpace = 'pre-wrap'
-      textBox.style.wordWrap = 'break-word'
-      textBox.style.pointerEvents = 'auto'  // Ensure textbox receives mouse events
-      textBox.innerText = '텍스트 입력'
-
-      await logToFile('TextBox element created')
-      await logToFile(`Styles - position: ${textBox.style.position}, left: ${textBox.style.left}, top: ${textBox.style.top}, zIndex: ${textBox.style.zIndex}`)
-
-      document.body.appendChild(textBox)
-      await logToFile(`TextBox appended to body. Total editable elements: ${document.querySelectorAll('[contenteditable="true"]').length}`)
-
-      // Disable mouse event passthrough while textbox is active
-      if (window.electron?.setIgnoreMouseEvents) {
-        window.electron.setIgnoreMouseEvents(false)
-        await logToFile('Mouse passthrough disabled for textbox')
-      }
-
-      textBox.focus()
-      await logToFile('TextBox focused')
-
-      // Select all text on focus
-      const range = document.createRange()
-      range.selectNodeContents(textBox)
-      const selection = window.getSelection()
-      selection.removeAllRanges()
-      selection.addRange(range)
-
-      // Finalize text when clicking outside or pressing Escape
-      function finalizeText(e) {
-        // Don't finalize if clicking inside the textbox itself
-        if (e && e.target === textBox) return
-
-        const text = textBox.innerText.trim()
-
-        // Remove the textbox
-        document.body.removeChild(textBox)
-        document.removeEventListener('click', finalizeText)
-        document.removeEventListener('keydown', escapeHandler)
-
-        // Draw the text on canvas if not empty
-        if (text && text !== '텍스트 입력') {
-          ctx.save()
-          ctx.font = `${currentSize * 5}px Arial`
-          ctx.fillStyle = currentColor
-          ctx.textBaseline = 'top'
-
-          // Draw text with line wrapping
-          const lines = text.split('\n')
-          const lineHeight = currentSize * 6
-          lines.forEach((line, i) => {
-            ctx.fillText(line, x, y + (i * lineHeight))
-          })
-
-          ctx.restore()
-        }
-      }
-
-      function escapeHandler(e) {
-        if (e.key === 'Escape') {
-          finalizeText()
-        }
-      }
-
-      // Add event listeners with a small delay to prevent immediate triggering
-      setTimeout(() => {
-        document.addEventListener('click', finalizeText)
-        document.addEventListener('keydown', escapeHandler)
-      }, 100)
-
-      // Prevent the textbox click from bubbling
-      textBox.addEventListener('click', (e) => {
-        e.stopPropagation()
-      })
-    }
-
-    // Log to file helper
-    let logBuffer = []
-    async function logToFile(message) {
-      const timestamp = new Date().toISOString()
-      const logMessage = `[${timestamp}] ${message}`
-      console.log(logMessage)
-
-      logBuffer.push(logMessage)
-
-      // Save accumulated logs to file
-      if (window.electron?.saveImage) {
-        try {
-          const fullLog = logBuffer.join('\n') + '\n'
-          const logDataUrl = 'data:text/plain;base64,' + btoa(unescape(encodeURIComponent(fullLog)))
-          await window.electron.saveImage(logDataUrl, 'text_debug.log')
-        } catch (e) {
-          console.error('Failed to write log:', e)
-        }
-      }
-    }
-
-    // Toggle capture menu
+    // Capture dropdown toggle
     captureBtn.addEventListener('click', (e) => {
       e.stopPropagation()
-      captureMenu.style.display = captureMenu.style.display === 'flex' ? 'none' : 'flex'
+      captureMenu.classList.toggle('show')
     })
 
-    // Close menu when clicking outside
+    // Close dropdown when clicking outside
     document.addEventListener('click', (e) => {
       if (!captureBtn.contains(e.target) && !captureMenu.contains(e.target)) {
-        captureMenu.style.display = 'none'
+        captureMenu.classList.remove('show')
       }
     })
 
-    // Full capture function
-    fullCaptureBtn.addEventListener('click', async (e) => {
-      e.stopPropagation()
-      captureMenu.style.display = 'none'
-
-      await logToFile('=== FULL CAPTURE CLICKED ===')
-      await logToFile('window.electron exists: ' + (!!window.electron))
+    // Capture functions
+    async function captureFullScreen() {
+      captureMenu.classList.remove('show')
 
       try {
-        if (!window.electron?.captureScreen || !window.electron?.saveImage) {
-          await logToFile('ERROR: Electron API not available')
+        console.log('Starting full screen capture...')
+
+        // Check if electron API is available
+        if (!window.electron?.captureScreen) {
           showToast('캡처 기능을 사용할 수 없습니다')
+          console.error('captureScreen API not available')
           return
         }
 
-        await logToFile('Starting full capture...')
-        showToast('화면 캡처 중...')
-
+        // Capture the actual screen background
+        console.log('Capturing screen...')
         const screenDataUrl = await window.electron.captureScreen()
-        await logToFile('captureScreen returned: ' + (screenDataUrl ? 'SUCCESS' : 'FAILED'))
 
         if (!screenDataUrl) {
-          await logToFile('ERROR: screenDataUrl is empty')
-          showToast('화면 캡처 실패')
+          showToast('화면 캡처 실패: 스크린 데이터 없음')
+          console.error('captureScreen returned empty')
           return
         }
 
-        // Create composite canvas
+        console.log('Screen captured, compositing...')
+
+        // Create a temporary canvas to composite background + drawing
         const compositeCanvas = document.createElement('canvas')
         compositeCanvas.width = canvas.width
         compositeCanvas.height = canvas.height
         const compositeCtx = compositeCanvas.getContext('2d')
 
-        // Load and draw background
-        const bgImage = new Image()
-        await new Promise((resolve, reject) => {
-          bgImage.onload = () => {
-            logToFile('Background image loaded successfully')
-            resolve()
-          }
-          bgImage.onerror = (e) => {
-            logToFile('ERROR: Background image load failed: ' + e)
-            reject(e)
-          }
-          bgImage.src = screenDataUrl
-        })
+        if (!compositeCtx) {
+          showToast('캔버스 생성 실패')
+          return
+        }
 
-        // Draw composite
+        // Load background image
+        console.log('Loading background image...')
+        const bgImage = new Image()
+
+        try {
+          await new Promise((resolve, reject) => {
+            bgImage.onload = () => {
+              console.log('Background image loaded')
+              console.log('Background image size:', bgImage.width, 'x', bgImage.height)
+              console.log('Canvas size:', canvas.width, 'x', canvas.height)
+              resolve()
+            }
+            bgImage.onerror = (e) => {
+              console.error('Background image load error:', e)
+              reject(new Error('배경 이미지 로드 실패'))
+            }
+            bgImage.src = screenDataUrl
+          })
+        } catch (e) {
+          showToast('배경 이미지 로드 실패')
+          console.error(e)
+          return
+        }
+
+        // Draw background (scale to canvas size)
+        console.log('Drawing composite...')
         compositeCtx.drawImage(bgImage, 0, 0, canvas.width, canvas.height)
+
+        // Draw canvas content on top
         compositeCtx.drawImage(canvas, 0, 0)
 
-        // Save the composite image
+        // Get composite as data URL
         const dataUrl = compositeCanvas.toDataURL('image/png')
+
+        // Generate filename with timestamp
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
         const filename = `capture_${timestamp}.png`
 
-        // Copy to clipboard
-        if (window.electron?.copyImageToClipboard) {
-          await window.electron.copyImageToClipboard(dataUrl)
-          await logToFile('Image copied to clipboard')
-        }
+        console.log('Saving image...')
 
-        const result = await window.electron.saveImage(dataUrl, filename)
-        await logToFile('Save result: ' + JSON.stringify(result))
-
-        if (result.success) {
-          await logToFile('SUCCESS: Image saved to ' + result.path)
-          showToast(`저장 및 복사됨: ${filename}`)
+        // Save image using electron API
+        if (window.electron?.saveImage) {
+          const result = await window.electron.saveImage(dataUrl, filename)
+          if (result.success) {
+            console.log('Image saved successfully')
+            showToast(`저장됨: ${filename}`)
+          } else {
+            showToast('이미지 저장 실패: ' + result.error)
+            console.error('Save error:', result.error)
+          }
         } else {
-          await logToFile('ERROR: Save failed: ' + result.error)
-          showToast('저장 실패: ' + result.error)
+          showToast('저장 기능을 사용할 수 없습니다')
         }
       } catch (error) {
-        await logToFile('EXCEPTION: ' + error.message)
-        await logToFile('Stack: ' + error.stack)
         console.error('Capture error:', error)
-        showToast('캡처 오류: ' + error.message)
+        showToast('캡처 중 오류: ' + error.message)
       }
-    })
+    }
 
-    // Region capture function
-    let regionCaptureActive = false
-    let regionStartX = 0
-    let regionStartY = 0
-    let regionOverlay = null
+    function startRectCapture() {
+      captureMenu.classList.remove('show')
+      captureMode = true
+      canvas.style.cursor = 'crosshair'
 
-    regionCaptureBtn.addEventListener('click', async (e) => {
-      e.stopPropagation()
-      captureMenu.style.display = 'none'
-
-      await logToFile('=== REGION CAPTURE CLICKED ===')
-
-      if (!window.electron?.captureScreen || !window.electron?.saveImage) {
-        showToast('캡처 기능을 사용할 수 없습니다')
-        return
-      }
-
-      showToast('영역을 드래그하세요')
-      regionCaptureActive = true
-
-      // Create overlay for region selection
-      regionOverlay = document.createElement('div')
-      regionOverlay.style.position = 'fixed'
-      regionOverlay.style.border = '2px dashed #00ff00'
-      regionOverlay.style.backgroundColor = 'rgba(0, 255, 0, 0.1)'
-      regionOverlay.style.pointerEvents = 'none'
-      regionOverlay.style.zIndex = '9999'
-      regionOverlay.style.display = 'none'
-      document.body.appendChild(regionOverlay)
-
-      // Temporarily disable mouse event passthrough for region selection
-      if (window.electron?.setIgnoreMouseEvents) {
-        window.electron.setIgnoreMouseEvents(false)
-      }
-    })
-
-    // Region selection mouse handlers
-    document.addEventListener('mousedown', (e) => {
-      if (!regionCaptureActive) return
-
-      regionStartX = e.clientX
-      regionStartY = e.clientY
-
-      regionOverlay.style.left = regionStartX + 'px'
-      regionOverlay.style.top = regionStartY + 'px'
-      regionOverlay.style.width = '0px'
-      regionOverlay.style.height = '0px'
-      regionOverlay.style.display = 'block'
-    })
-
-    document.addEventListener('mousemove', (e) => {
-      if (!regionCaptureActive || !regionOverlay || regionOverlay.style.display === 'none') return
-
-      const currentX = e.clientX
-      const currentY = e.clientY
-
-      const left = Math.min(regionStartX, currentX)
-      const top = Math.min(regionStartY, currentY)
-      const width = Math.abs(currentX - regionStartX)
-      const height = Math.abs(currentY - regionStartY)
-
-      regionOverlay.style.left = left + 'px'
-      regionOverlay.style.top = top + 'px'
-      regionOverlay.style.width = width + 'px'
-      regionOverlay.style.height = height + 'px'
-    })
-
-    document.addEventListener('mouseup', async (e) => {
-      if (!regionCaptureActive) return
-
-      const endX = e.clientX
-      const endY = e.clientY
-
-      const left = Math.min(regionStartX, endX)
-      const top = Math.min(regionStartY, endY)
-      const width = Math.abs(endX - regionStartX)
-      const height = Math.abs(endY - regionStartY)
-
-      // Clean up
-      if (regionOverlay) {
-        document.body.removeChild(regionOverlay)
-        regionOverlay = null
-      }
-      regionCaptureActive = false
-
-      // Restore mouse event passthrough
+      // Update mouse events to ensure we can capture
       updateMouseEvents()
 
-      // Ignore if region is too small
-      if (width < 10 || height < 10) {
-        showToast('영역이 너무 작습니다')
-        return
+      let captureStartX = 0
+      let captureStartY = 0
+      let isSelecting = false
+      let overlay = null
+
+      const handleCaptureMouseDown = (e) => {
+        isSelecting = true
+        captureStartX = e.clientX
+        captureStartY = e.clientY
+
+        // Save current canvas
+        overlay = ctx.getImageData(0, 0, canvas.width, canvas.height)
       }
 
-      await logToFile(`Region selected: ${left},${top} ${width}x${height}`)
+      const handleCaptureMouseMove = (e) => {
+        if (!isSelecting) return
 
-      try {
-        showToast('영역 캡처 중...')
-
-        // Capture the screen
-        const screenDataUrl = await window.electron.captureScreen()
-        if (!screenDataUrl) {
-          showToast('화면 캡처 실패')
-          return
+        // Restore canvas
+        if (overlay) {
+          ctx.putImageData(overlay, 0, 0)
         }
 
-        // Create composite canvas
-        const compositeCanvas = document.createElement('canvas')
-        compositeCanvas.width = canvas.width
-        compositeCanvas.height = canvas.height
-        const compositeCtx = compositeCanvas.getContext('2d')
+        // Draw selection rectangle
+        ctx.strokeStyle = '#2196f3'
+        ctx.lineWidth = 2
+        ctx.setLineDash([5, 5])
+        ctx.strokeRect(captureStartX, captureStartY, e.clientX - captureStartX, e.clientY - captureStartY)
+        ctx.setLineDash([])
+      }
 
-        // Load and draw background
-        const bgImage = new Image()
-        await new Promise((resolve, reject) => {
-          bgImage.onload = resolve
-          bgImage.onerror = reject
-          bgImage.src = screenDataUrl
-        })
+      const handleCaptureMouseUp = async (e) => {
+        if (!isSelecting) return
 
-        // Draw composite
-        compositeCtx.drawImage(bgImage, 0, 0, canvas.width, canvas.height)
-        compositeCtx.drawImage(canvas, 0, 0)
+        // Stop selecting immediately to prevent further drawing
+        isSelecting = false
 
-        // Extract selected region
-        const regionCanvas = document.createElement('canvas')
-        regionCanvas.width = width
-        regionCanvas.height = height
-        const regionCtx = regionCanvas.getContext('2d')
+        const x1 = Math.min(captureStartX, e.clientX)
+        const y1 = Math.min(captureStartY, e.clientY)
+        const width = Math.abs(e.clientX - captureStartX)
+        const height = Math.abs(e.clientY - captureStartY)
 
-        regionCtx.drawImage(compositeCanvas, left, top, width, height, 0, 0, width, height)
-
-        // Save the region image
-        const dataUrl = regionCanvas.toDataURL('image/png')
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
-        const filename = `capture_region_${timestamp}.png`
-
-        // Copy to clipboard
-        if (window.electron?.copyImageToClipboard) {
-          await window.electron.copyImageToClipboard(dataUrl)
-          await logToFile('Region image copied to clipboard')
+        // Always restore original canvas to clean up selection rectangle
+        if (overlay) {
+          ctx.putImageData(overlay, 0, 0)
         }
 
-        const result = await window.electron.saveImage(dataUrl, filename)
+        if (width > 10 && height > 10) {
+          try {
+            // Capture the actual screen background
+            const screenDataUrl = await window.electron?.captureScreen()
 
-        if (result.success) {
-          await logToFile('SUCCESS: Region saved to ' + result.path)
-          showToast(`저장 및 복사됨: ${filename}`)
+            if (!screenDataUrl) {
+              showToast('화면 캡처 실패')
+              return
+            }
+
+            // Create composite canvas for the selected region
+            const tempCanvas = document.createElement('canvas')
+            tempCanvas.width = width
+            tempCanvas.height = height
+            const tempCtx = tempCanvas.getContext('2d')
+
+            // Load background image
+            const bgImage = new Image()
+            await new Promise((resolve, reject) => {
+              bgImage.onload = resolve
+              bgImage.onerror = reject
+              bgImage.src = screenDataUrl
+            })
+
+            console.log('Background image size:', bgImage.width, 'x', bgImage.height)
+            console.log('Canvas size:', canvas.width, 'x', canvas.height)
+            console.log('Selection region:', x1, y1, width, height)
+
+            // Calculate scaling factors
+            const scaleX = bgImage.width / canvas.width
+            const scaleY = bgImage.height / canvas.height
+
+            console.log('Scale factors:', scaleX, scaleY)
+
+            // Calculate the region in the background image coordinates
+            const bgX = x1 * scaleX
+            const bgY = y1 * scaleY
+            const bgWidth = width * scaleX
+            const bgHeight = height * scaleY
+
+            console.log('Background region:', bgX, bgY, bgWidth, bgHeight)
+
+            // Draw background region (scaled from background image)
+            tempCtx.drawImage(bgImage, bgX, bgY, bgWidth, bgHeight, 0, 0, width, height)
+
+            // Create temporary canvas for the drawing region
+            const drawingCanvas = document.createElement('canvas')
+            drawingCanvas.width = width
+            drawingCanvas.height = height
+            const drawingCtx = drawingCanvas.getContext('2d')
+
+            // Copy drawing region
+            const canvasRegion = ctx.getImageData(x1, y1, width, height)
+            drawingCtx.putImageData(canvasRegion, 0, 0)
+
+            // Draw canvas content on top of background
+            tempCtx.drawImage(drawingCanvas, 0, 0)
+
+            // Get as data URL
+            const dataUrl = tempCanvas.toDataURL('image/png')
+
+            // Generate filename
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
+            const filename = `capture_region_${timestamp}.png`
+
+            // Save image
+            if (window.electron?.saveImage) {
+              const result = await window.electron.saveImage(dataUrl, filename)
+              if (result.success) {
+                showToast(`저장됨: ${filename}`)
+              } else {
+                showToast('이미지 저장 실패: ' + result.error)
+              }
+            }
+          } catch (error) {
+            console.error('Region capture error:', error)
+            showToast('영역 캡처 중 오류 발생')
+          }
+        }
+
+        // Cleanup event listeners
+        canvas.removeEventListener('mousedown', handleCaptureMouseDown)
+        canvas.removeEventListener('mousemove', handleCaptureMouseMove)
+        canvas.removeEventListener('mouseup', handleCaptureMouseUp)
+
+        // Exit capture mode
+        captureMode = false
+
+        // Restore cursor based on current tool
+        if (currentTool === 'none') {
+          canvas.style.cursor = 'default'
+        } else if (currentTool === 'eraser') {
+          canvas.style.cursor = 'pointer'
         } else {
-          showToast('저장 실패: ' + result.error)
+          canvas.style.cursor = 'crosshair'
         }
-      } catch (error) {
-        await logToFile('Region capture error: ' + error.message)
-        showToast('영역 캡처 오류: ' + error.message)
+
+        // Update mouse events to restore previous state
+        updateMouseEvents()
       }
-    })
+
+      canvas.addEventListener('mousedown', handleCaptureMouseDown)
+      canvas.addEventListener('mousemove', handleCaptureMouseMove)
+      canvas.addEventListener('mouseup', handleCaptureMouseUp)
+    }
 
     function closeWindow() {
       window.close()
@@ -1206,6 +1119,7 @@
 
     // Touch support for canvas
     canvas.addEventListener('touchstart', (e) => {
+      if (captureMode) return
       e.preventDefault()
       const touch = e.touches[0]
       const mouseEvent = new MouseEvent('mousedown', {
@@ -1216,6 +1130,7 @@
     })
 
     canvas.addEventListener('touchmove', (e) => {
+      if (captureMode) return
       e.preventDefault()
       const touch = e.touches[0]
       const mouseEvent = new MouseEvent('mousemove', {
@@ -1226,6 +1141,7 @@
     })
 
     canvas.addEventListener('touchend', (e) => {
+      if (captureMode) return
       e.preventDefault()
       const mouseEvent = new MouseEvent('mouseup', {})
       canvas.dispatchEvent(mouseEvent)
