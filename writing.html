@@ -613,6 +613,17 @@
       const y = e.clientY
 
       if (currentTool === 'pen' || currentTool === 'highlighter') {
+        // Only add point if it's far enough from the last point (reduces points)
+        if (currentPoints.length > 0) {
+          const lastPoint = currentPoints[currentPoints.length - 1]
+          const dx = x - lastPoint[0]
+          const dy = y - lastPoint[1]
+          const distance = Math.sqrt(dx * dx + dy * dy)
+
+          // Skip if too close (same threshold as main graph)
+          if (distance < 3) return // ~3 pixels minimum distance
+        }
+
         // Add point to array
         currentPoints.push([x, y, 0.5])
         pendingDrawingUpdate = true
