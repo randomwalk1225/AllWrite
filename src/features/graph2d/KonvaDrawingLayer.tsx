@@ -630,6 +630,8 @@ const KonvaDrawingLayerComponent = (
   const setSelectedIds = useStore((state) => state.setSelectedIds);
   const [isDrawing, setIsDrawing] = useState(false);
   const currentStrokePoints = useRef<Array<{ x: number; y: number }>>([]);
+  const drawingRenderFrameRef = useRef<number | null>(null);
+  const pendingDrawingUpdateRef = useRef(false);
   const [tempStrokeData, setTempStrokeData] = useState<number[] | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [selectionRect, setSelectionRect] = useState<{
@@ -1201,40 +1203,53 @@ const KonvaDrawingLayerComponent = (
           Math.pow(graphPoint.y - lastPoint.y, 2),
       );
       // Skip if too close (reduces calculation load)
-      if (distance < 0.01) return;
+      if (distance < 0.05) return; // Increased from 0.01 for better performance
     }
 
     currentStrokePoints.current.push(graphPoint);
+    pendingDrawingUpdateRef.current = true;
 
-    // Convert to screen coordinates for Perfect Freehand
-    const screenPoints = convertStrokeToScreen(currentStrokePoints.current);
+    // Use requestAnimationFrame to throttle rendering (like image dragging)
+    if (drawingRenderFrameRef.current === null) {
+      drawingRenderFrameRef.current = requestAnimationFrame(() => {
+        if (!pendingDrawingUpdateRef.current) {
+          drawingRenderFrameRef.current = null;
+          return;
+        }
 
-    // Get current tool settings
-    const baseSize = drawingTool === "pen" ? penThickness : highlighterThickness;
-    // Use same size as saved - no conversion needed for screen rendering
-    const size = baseSize;
+        // Convert to screen coordinates for Perfect Freehand
+        const screenPoints = convertStrokeToScreen(currentStrokePoints.current);
 
-    // Generate stroke with Perfect Freehand
-    // Higher smoothing for curved interpolation, lower streamline to preserve input precision
-    const stroke = getStroke(screenPoints, {
-      size: size,
-      thinning: 0,  // No thinning for consistent line width
-      smoothing: 0.8,  // High smoothing for smooth curves with detail preservation
-      streamline: 0.3,  // Lower to preserve input detail and responsiveness
-      easing: (t) => t,
-      start: {
-        taper: 0,
-        cap: true,
-      },
-      end: {
-        taper: 0,
-        cap: true,
-      },
-    });
+        // Get current tool settings
+        const baseSize = drawingTool === "pen" ? penThickness : highlighterThickness;
+        const size = baseSize;
 
-    // Convert stroke to points for Konva
-    const points = strokeToKonvaPoints(stroke);
-    setTempStrokeData(points);
+        // Generate stroke with Perfect Freehand
+        // Optimized settings for better responsiveness
+        const stroke = getStroke(screenPoints, {
+          size: size,
+          thinning: 0,
+          smoothing: 0.5,  // Reduced from 0.8 for better responsiveness
+          streamline: 0.15,  // Reduced from 0.3 to minimize lag
+          easing: (t) => t,
+          start: {
+            taper: 0,
+            cap: true,
+          },
+          end: {
+            taper: 0,
+            cap: true,
+          },
+        });
+
+        // Convert stroke to points for Konva
+        const points = strokeToKonvaPoints(stroke);
+        setTempStrokeData(points);
+
+        pendingDrawingUpdateRef.current = false;
+        drawingRenderFrameRef.current = null;
+      });
+    }
   };
 
   // Handle mouse up - finish drawing or lasso selection or erasing
@@ -1601,6 +1616,13 @@ const KonvaDrawingLayerComponent = (
     if (!isDrawing) return;
 
     setIsDrawing(false);
+
+    // Cancel any pending RAF for drawing
+    if (drawingRenderFrameRef.current !== null) {
+      cancelAnimationFrame(drawingRenderFrameRef.current);
+      drawingRenderFrameRef.current = null;
+      pendingDrawingUpdateRef.current = false;
+    }
 
     if (currentStrokePoints.current.length > 1) {
       const color = drawingTool === "pen" ? penColor : highlighterColor;
