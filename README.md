@@ -1,285 +1,252 @@
-# AllWrite 2.0 📐✨
+# AllWrite 2.0
 
-**AllWrite 2.0**은 수학 교육을 위한 강력한 대화형 기하학 및 그래프 도구입니다. 실시간 기하학 작도, 수식 입력, 그래프 그리기 기능을 제공하며, 점과 도형이 완벽하게 동기화되어 직관적인 수학 학습 경험을 제공합니다.
+**[한국어](README.ko.md)** | English
 
-## ✨ 주요 기능
+> Interactive geometry and graphing tool for math education
 
-### 📐 기하학 도구
+**AllWrite 2.0** is a powerful interactive geometry and graphing tool for math education. It provides real-time geometry construction, formula input, and graphing capabilities with perfect point-shape synchronization for an intuitive math learning experience.
 
-#### 점 (Point)
-- **고정점**: 자유롭게 배치 가능한 독립 점
-- **중점**: 두 점의 중점 자동 계산
-- **내분점**: 두 점을 m:n으로 내분하는 점
-- **제약점**: 선, 원, 다각형 위에 구속된 점
+## Key Features
 
-#### 선 (Line)
-- **선분 (Segment)**: 두 점을 연결하는 선분
-- **반직선 (Ray)**: 한 점에서 시작하여 한 방향으로 무한히 연장
-- **직선 (Line)**: 양방향으로 무한히 연장되는 직선
-- 점을 드래그하면 선도 실시간으로 변형
+### Geometry Tools
 
-#### 원 (Circle)
-- **중심-반지름 방식**: 중심점과 반지름점으로 정의
-- **지름 방식**: 지름의 두 끝점으로 정의
-- **세 점을 지나는 원**: 세 점을 모두 지나는 외접원
-- 제어점 드래그로 실시간 크기 조절
+#### Points
+- **Fixed Point**: Freely placeable independent points
+- **Midpoint**: Auto-calculated midpoint between two points
+- **Division Point**: Point dividing two points in ratio m:n
+- **Constrained Point**: Points constrained to lines, circles, or polygons
 
-#### 다각형 (Polygon)
+#### Lines
+- **Segment**: Line segment connecting two points
+- **Ray**: Extends infinitely in one direction from a point
+- **Line**: Extends infinitely in both directions
+- Drag points to transform lines in real-time
 
-##### 정다각형
-- 3각형 ~ 12각형 지원
-- 중심점과 반지름점으로 정의
-- **중심점 드래그**: 전체 이동 (반지름점도 함께)
-- **반지름점 드래그**: 크기와 회전 변경
+#### Circles
+- **Center-Radius**: Defined by center and radius point
+- **Diameter**: Defined by two endpoints of diameter
+- **Three-Point Circle**: Circumscribed circle through three points
+- Real-time resizing by dragging control points
 
-##### 특수 다각형
-모든 특수 다각형은 2개의 제어점으로 정의되며, 기하학적 특성을 유지하면서 실시간으로 변형됩니다:
+#### Polygons
 
-- **직사각형 (Rectangle)**: 대각선의 두 끝점으로 정의
-- **정사각형 (Square)**: 한 변의 두 끝점으로 정의
-- **평행사변형 (Parallelogram)**: 한 변의 두 끝점으로 정의 (60도 고정)
-- **마름모 (Rhombus)**: 한 대각선의 두 끝점으로 정의
-- **연 (Kite)**: 대칭축의 두 끝점으로 정의
-- **직각삼각형 (Right Triangle)**: 빗변의 두 끝점으로 정의
+**Regular Polygons**
+- Supports 3 to 12 sided polygons
+- Defined by center and radius point
+- Drag center to move entire shape
+- Drag radius point to resize and rotate
 
-##### 자유 다각형
-- 클릭하여 꼭짓점 추가
-- 첫 번째 점 다시 클릭으로 완성
-- 각 꼭짓점을 개별적으로 드래그 가능
+**Special Polygons**
+All special polygons are defined by 2 control points and maintain geometric properties during transformation:
 
-### ✨ 실시간 동기화의 핵심
+- **Rectangle**: Defined by diagonal endpoints
+- **Square**: Defined by one side's endpoints
+- **Parallelogram**: Defined by one side's endpoints (60° fixed)
+- **Rhombus**: Defined by diagonal endpoints
+- **Kite**: Defined by axis of symmetry endpoints
+- **Right Triangle**: Defined by hypotenuse endpoints
 
-**점과 도형의 완벽한 일대일 대응**이 AllWrite 2.0의 가장 큰 특징입니다:
+**Free Polygon**
+- Click to add vertices
+- Click first point again to complete
+- Each vertex can be dragged individually
 
-- 점을 드래그하면 **연결된 모든 도형이 실시간으로 변형**
-- 정다각형의 중심점을 이동하면 **전체 도형이 이동** (반지름점도 함께)
-- 정다각형의 반지름점을 이동하면 **크기와 회전이 변경**
-- 마름모의 대각선 끝점을 이동하면 **마름모 특성을 유지하며 변형**
-- 정사각형의 변 끝점을 이동하면 **정사각형을 유지하며 크기/회전 변경**
-- 모든 변형이 **드래그하는 동안에도 실시간 애니메이션**으로 표시
+### Real-time Synchronization
 
-### 📊 그래프 및 캔버스 기능
+**Perfect one-to-one correspondence between points and shapes** is the core feature of AllWrite 2.0:
 
-- **무한 캔버스**: 제한 없이 자유롭게 작업
-- **팬/줌**: 마우스 휠로 확대/축소, 드래그로 이동
-- **좌표 평면**: 그리드와 축 표시
-- **자유 드로잉**: 펜 도구로 자유롭게 그리기
-- **지우개**: 선택적 삭제
-- **선택 도구**: 클릭, 사각 선택, 올가미 선택
-- **복사/붙여넣기**: Ctrl+C / Ctrl+V
+- Drag a point and **all connected shapes transform in real-time**
+- Move polygon center → **entire shape moves** (radius point follows)
+- Move radius point → **size and rotation change**
+- Drag rhombus diagonal endpoint → **maintains rhombus properties**
+- All transformations show **real-time animation while dragging**
 
-### 🎨 렌더링 모드
+### Canvas Features
 
-- **외곽선 (Stroke)**: 도형의 외곽선만 표시
-- **채우기 (Fill)**: 도형을 색으로 채움
-- **혼합 (Multiply)**: 겹치는 영역의 색상 혼합
+- **Infinite Canvas**: Work without limits
+- **Pan/Zoom**: Mouse wheel to zoom, drag to pan
+- **Coordinate Plane**: Grid and axis display
+- **Freehand Drawing**: Pen tool for free drawing
+- **Eraser**: Selective deletion
+- **Selection Tools**: Click, rectangle, lasso selection
+- **Copy/Paste**: Ctrl+C / Ctrl+V
 
-### 👁️ 점 표시 모드
+### Rendering Modes
 
-- **항상 표시**: 모든 점 표시
-- **선택 시만**: 선택된 점만 표시
-- **숨김**: 점 숨김
+- **Stroke**: Display shape outlines only
+- **Fill**: Fill shapes with color
+- **Multiply**: Blend overlapping colors
 
-## 📥 다운로드
+## Download
 
-### 플랫폼별 다운로드
+### Platform Downloads
 
-**[Releases](https://github.com/randomwalk1225/AllWrite/releases)** 페이지에서 사용 중인 운영체제에 맞는 설치 파일을 다운로드하세요.
+Download installation files for your OS from the **[Releases](https://github.com/randomwalk1225/AllWrite/releases)** page.
 
-#### 🪟 Windows
+#### Windows
 
-1. **[Releases](https://github.com/randomwalk1225/AllWrite/releases)** 페이지로 이동
-2. 최신 버전의 **`AllWrite2-Setup-{version}.exe`** 다운로드
-3. 다운로드한 파일 실행하여 설치
-4. 설치 완료 후 바탕화면 또는 시작 메뉴에서 **AllWrite 2.0** 실행
+1. Go to **[Releases](https://github.com/randomwalk1225/AllWrite/releases)**
+2. Download latest **`AllWrite2-Setup-{version}.exe`**
+3. Run the downloaded file to install
+4. Launch **AllWrite 2.0** from desktop or Start menu
 
-#### 🍎 macOS
+#### macOS
 
-1. **[Releases](https://github.com/randomwalk1225/AllWrite/releases)** 페이지로 이동
-2. 최신 버전의 **`AllWrite2-{version}.dmg`** 다운로드
-3. DMG 파일을 열고 AllWrite2 아이콘을 Applications 폴더로 드래그
-4. Applications 폴더에서 **AllWrite 2.0** 실행
+1. Go to **[Releases](https://github.com/randomwalk1225/AllWrite/releases)**
+2. Download latest **`AllWrite2-{version}.dmg`**
+3. Open DMG and drag AllWrite2 to Applications folder
+4. Launch **AllWrite 2.0** from Applications
 
-> **참고**: macOS에서 "확인되지 않은 개발자" 경고가 나타날 경우:
-> 1. 시스템 설정 > 개인 정보 보호 및 보안 이동
-> 2. "확인 없이 열기" 버튼 클릭
+> **Note**: If you see "unidentified developer" warning on macOS:
+> 1. Go to System Settings > Privacy & Security
+> 2. Click "Open Anyway" button
 
-## 🎯 사용 방법
+## Usage
 
-### 기본 조작
+### Basic Controls
 
-| 작업 | 방법 |
-|------|------|
-| **줌 인/아웃** | 마우스 휠 |
-| **캔버스 이동** | 스페이스바 + 드래그 |
-| **도구 선택** | 왼쪽 도구 패널 클릭 |
-| **도형 선택** | 선택 도구로 클릭 또는 드래그 |
-| **다중 선택** | Shift + 클릭 |
-| **복사** | Ctrl + C |
-| **붙여넣기** | Ctrl + V |
-| **삭제** | Delete 키 |
-| **실행 취소** | Ctrl + Z |
-| **다시 실행** | Ctrl + Y |
+| Action | Method |
+|--------|--------|
+| **Zoom In/Out** | Mouse wheel |
+| **Pan Canvas** | Spacebar + Drag |
+| **Select Tool** | Click left tool panel |
+| **Select Shape** | Click or drag with selection tool |
+| **Multi-select** | Shift + Click |
+| **Copy** | Ctrl + C |
+| **Paste** | Ctrl + V |
+| **Delete** | Delete key |
+| **Undo** | Ctrl + Z |
+| **Redo** | Ctrl + Y |
 
-### 도형 그리기 워크플로우
+### Drawing Workflows
 
-#### 1. 정다각형 (예: 정육각형)
-1. **도형 탭** 클릭
-2. **정다각형** 버튼 클릭
-3. 캔버스에서 중심 위치 클릭
-4. 드래그하여 크기와 회전 결정
-5. 대화상자에서 **6** 입력 (육각형)
-6. **확인** 클릭
+#### Regular Polygon (e.g., Hexagon)
+1. Click **Shapes** tab
+2. Click **Regular Polygon**
+3. Click canvas for center position
+4. Drag to set size and rotation
+5. Enter **6** in dialog (for hexagon)
+6. Click **OK**
 
-**드래그하여 조작**:
-- 중심점 드래그 → 전체 이동
-- 반지름점 드래그 → 크기와 회전 변경
+#### Circle (Center-Radius)
+1. **Shapes** tab → **Circle** → **Center-Radius**
+2. Click for center position
+3. Drag to set radius
+4. Release mouse
 
-#### 2. 마름모
-1. **도형 탭** → **마름모** 선택
-2. 한 대각선의 끝점 클릭
-3. 드래그하여 다른 대각선 끝점 결정
-4. 마우스 버튼 놓기
+#### Free Polygon
+1. **Shapes** tab → **Polygon**
+2. Click for first vertex
+3. Click to add more vertices
+4. Click first point again or press **Enter** to complete
 
-**드래그하여 조작**:
-- 대각선 끝점을 드래그하면 마름모가 실시간으로 변형
+### Advanced Features
 
-#### 3. 원 (중심-반지름)
-1. **도형 탭** → **원** → **중심-반지름** 선택
-2. 중심 위치 클릭
-3. 드래그하여 반지름 결정
-4. 마우스 버튼 놓기
+#### Creating Midpoints
+1. Create two points A, B
+2. **Shapes** tab → **Point** → **Midpoint**
+3. Click A → Click B
+4. Midpoint M is created and follows when A or B moves
 
-**드래그하여 조작**:
-- 중심점 드래그 → 원 이동
-- 반지름점 드래그 → 원 크기 변경
+#### Creating Division Points
+1. Create two points A, B
+2. **Shapes** tab → **Point** → **Division Point**
+3. Click A → Click B
+4. Enter ratio (e.g., m=2, n=3)
+5. Division point is created at 2:3 ratio position
 
-#### 4. 자유 다각형 (예: 오각형)
-1. **도형 탭** → **다각형** 선택
-2. 첫 번째 꼭짓점 클릭
-3. 두 번째, 세 번째... 꼭짓점 순서대로 클릭
-4. 다섯 번째 꼭짓점 클릭 후 **첫 번째 점 다시 클릭** 또는 **Enter** 키
+## Development
 
-**드래그하여 조작**:
-- 각 꼭짓점을 개별적으로 드래그 가능
-
-### 고급 기능
-
-#### 중점 만들기
-1. 두 점 A, B 생성
-2. **도형 탭** → **점** → **중점** 선택
-3. A 클릭 → B 클릭
-4. 중점 M이 자동으로 생성되고 A나 B를 움직이면 M도 자동으로 따라감
-
-#### 내분점 만들기
-1. 두 점 A, B 생성
-2. **도형 탭** → **점** → **내분점** 선택
-3. A 클릭 → B 클릭
-4. 비율 입력 (예: m=2, n=3)
-5. 내분점이 A와 B를 2:3으로 내분하는 위치에 생성
-
-#### 원 위의 점
-1. 원 생성
-2. **도형 탭** → **점** → **구속점** 선택
-3. 원 클릭
-4. 점이 원 위에 구속되어 생성
-5. 점을 드래그하면 원 위에서만 이동
-
-## 🛠️ 개발 및 빌드
-
-### 개발 환경 설정
+### Setup
 
 ```bash
-# 의존성 설치
+# Install dependencies
 npm install
 
-# 개발 서버 실행
+# Run development server
 npm run dev
 ```
 
-브라우저에서 `http://localhost:5173` 접속
+Access `http://localhost:5173` in browser
 
-### 실행 파일 빌드
+### Build
 
 #### Windows (.exe)
 
 ```bash
-# 프로덕션 빌드 및 설치 파일 생성
 npm run build
 ```
 
-빌드 완료 후 `release/` 폴더에서 생성물 확인:
-- `AllWrite2-Setup-{version}.exe` - Windows 설치 파일
+Output in `release/` folder:
+- `AllWrite2-Setup-{version}.exe`
 
 #### macOS (.dmg)
 
 ```bash
-# 프로덕션 빌드 및 설치 파일 생성 (macOS에서만 실행)
+# Run on macOS only
 npm run build
 ```
 
-빌드 완료 후 `release/` 폴더에서 생성물 확인:
-- `AllWrite2-{version}.dmg` - macOS 설치 파일
-- `AllWrite2-{version}-mac.zip` - macOS 압축 파일
+Output in `release/` folder:
+- `AllWrite2-{version}.dmg`
+- `AllWrite2-{version}-mac.zip`
 
-## 🔧 기술 스택
+## Tech Stack
 
-### 프레임워크 및 라이브러리
-- **Electron** - 데스크톱 애플리케이션
-- **React** - UI 프레임워크
-- **TypeScript** - 타입 안전성
-- **Vite** - 빠른 빌드 도구
+### Frameworks
+- **Electron** - Desktop application
+- **React** - UI framework
+- **TypeScript** - Type safety
+- **Vite** - Fast build tool
 
-### 렌더링 및 그래픽
-- **Konva / React-Konva** - 2D 캔버스 렌더링
-- **Perfect Freehand** - 자연스러운 펜 스트로크
+### Graphics
+- **Konva / React-Konva** - 2D canvas rendering
+- **Perfect Freehand** - Natural pen strokes
 
-### 수학 및 기하학
-- **Math.js** - 수학 계산 엔진
-- **Algebrite** - 대수 연산
-- **KaTeX / MathLive** - 수학 수식 렌더링
+### Math
+- **Math.js** - Math computation engine
+- **Algebrite** - Algebraic operations
+- **KaTeX / MathLive** - Math formula rendering
 
-### 상태 관리
-- **Zustand** - 경량 상태 관리
+### State Management
+- **Zustand** - Lightweight state management
 
-### 유틸리티
-- **html2canvas** - 스크린샷
-- **jsPDF** - PDF 내보내기
-- **culori** - 색상 처리
-- **immer** - 불변 상태 업데이트
+### Utilities
+- **html2canvas** - Screenshots
+- **jsPDF** - PDF export
+- **culori** - Color processing
+- **immer** - Immutable state updates
 
-## 🎓 교육적 가치
+## Educational Value
 
-AllWrite 2.0은 다음과 같은 교육 목표를 지원합니다:
+AllWrite 2.0 supports these educational goals:
 
-- **직관적 이해**: 점을 움직이면 도형이 따라오는 실시간 피드백으로 기하학적 관계 이해
-- **탐구 학습**: 자유롭게 도형을 변형하며 패턴과 관계 발견
-- **정확한 작도**: 제약 조건을 활용한 정확한 기하학 작도
-- **시각화**: 복잡한 수학 개념을 시각적으로 표현
+- **Intuitive Understanding**: Real-time feedback helps understand geometric relationships
+- **Exploratory Learning**: Discover patterns by freely transforming shapes
+- **Precise Construction**: Accurate geometry construction using constraints
+- **Visualization**: Express complex math concepts visually
 
-## 📄 라이선스
+## License
 
 MIT License
 
-## 🤝 기여
+## Contributing
 
-이슈 및 풀 리퀘스트를 환영합니다!
+Issues and pull requests are welcome!
 
-1. 이 저장소를 Fork
-2. 새 브랜치 생성 (`git checkout -b feature/amazing-feature`)
-3. 변경사항 커밋 (`git commit -m 'Add amazing feature'`)
-4. 브랜치에 Push (`git push origin feature/amazing-feature`)
-5. Pull Request 생성
+1. Fork this repository
+2. Create new branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Create Pull Request
 
-## 💬 지원 및 문의
+## Support
 
-- **이슈 및 기능 요청**: [GitHub Issues](https://github.com/randomwalk1225/AllWrite/issues)
-- **개발자 연락처**: Binary (randomwalk1225@gmail.com)
+- **Issues & Feature Requests**: [GitHub Issues](https://github.com/randomwalk1225/AllWrite/issues)
+- **Developer Contact**: Binary (randomwalk1225@gmail.com)
 
 ---
 
-**AllWrite 2.0** - 수학을 더 직관적으로, 더 재미있게! 🎓✨
+**AllWrite 2.0** - Make math intuitive and fun!
 
-*점과 도형의 완벽한 동기화로 기하학의 아름다움을 경험하세요.*
-
-**개발자**: Binary (randomwalk1225@gmail.com)
+*Experience the beauty of geometry with perfect point-shape synchronization.*

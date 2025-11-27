@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AllWrite 2.0 - 대화형 수학 기하학 도구</title>
+    <meta name="description" content="실시간 기하학 작도, 수식 입력, 그래프 그리기. 점과 도형의 완벽한 동기화로 직관적인 수학 학습 경험을 제공합니다.">
+
+    <!-- Open Graph / Social Media -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="AllWrite 2.0 - 대화형 수학 기하학 도구">
+    <meta property="og:description" content="실시간 기하학 작도와 점-도형 동기화로 직관적인 수학 학습">
+    <meta property="og:image" content="../screenshots/og-image.png">
+
+    <link rel="icon" type="image/png" href="../favicon.png">
+    <link rel="alternate" hreflang="en" href="../">
+    <link rel="alternate" hreflang="ko" href="./">
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #4F46E5;
+            --primary-dark: #4338CA;
+            --dark: #1F2937;
+            --light: #F9FAFB;
+            --gray: #6B7280;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+            line-height: 1.6;
+            color: var(--dark);
+        }
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #E5E7EB;
+        }
+        .logo { font-size: 1.5rem; font-weight: 700; color: var(--primary); }
+        .nav-links { display: flex; align-items: center; gap: 1.5rem; }
+        .nav-links a { text-decoration: none; color: var(--gray); transition: color 0.2s; }
+        .nav-links a:hover { color: var(--primary); }
+        .lang-switch {
+            padding: 0.4rem 0.8rem;
+            border: 1px solid #E5E7EB;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            background: white;
+        }
+        .lang-switch:hover { border-color: var(--primary); }
+        .github-btn {
+            background: var(--dark) !important;
+            color: white !important;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        .github-btn:hover { background: #374151 !important; }
+
+        .hero {
+            padding: 8rem 2rem 4rem;
+            text-align: center;
+            background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .hero h1 { font-size: 3.5rem; margin-bottom: 1rem; color: var(--dark); }
+        .hero h1 span { color: var(--primary); }
+        .hero .tagline { font-size: 1.4rem; color: var(--gray); margin-bottom: 2rem; max-width: 650px; }
+        .screenshot-placeholder {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 100%; max-width: 900px; height: 500px;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 1.2rem;
+            margin: 2rem 0;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            text-align: center; padding: 2rem;
+        }
+        .cta-buttons { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
+        .btn {
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); transform: translateY(-2px); }
+        .btn-secondary { background: white; color: var(--dark); border: 2px solid #E5E7EB; }
+        .btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
+
+        .features { padding: 6rem 2rem; max-width: 1200px; margin: 0 auto; }
+        .section-title { text-align: center; font-size: 2.5rem; margin-bottom: 1rem; }
+        .section-subtitle { text-align: center; color: var(--gray); margin-bottom: 4rem; font-size: 1.2rem; }
+        .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }
+        .feature-card {
+            padding: 2rem;
+            border-radius: 12px;
+            background: var(--light);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .feature-card:hover { transform: translateY(-5px); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1); }
+        .feature-icon {
+            width: 48px; height: 48px;
+            background: var(--primary);
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .feature-card h3 { font-size: 1.3rem; margin-bottom: 0.5rem; }
+        .feature-card p { color: var(--gray); }
+
+        .demo { padding: 6rem 2rem; background: var(--dark); color: white; }
+        .demo .section-title { color: white; }
+        .demo .section-subtitle { color: #9CA3AF; }
+        .demo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 2rem; max-width: 1200px; margin: 0 auto; }
+        .demo-item { background: #374151; border-radius: 12px; overflow: hidden; }
+        .demo-image {
+            width: 100%; height: 220px;
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+            display: flex; align-items: center; justify-content: center;
+            color: white; text-align: center; padding: 1rem;
+        }
+        .demo-text { padding: 1.5rem; }
+        .demo-text h3 { margin-bottom: 0.5rem; }
+        .demo-text p { color: #9CA3AF; }
+
+        .download {
+            padding: 6rem 2rem;
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+            color: white;
+            text-align: center;
+        }
+        .download .section-title { color: white; }
+        .download-options { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; margin-top: 3rem; }
+        .download-card {
+            background: white;
+            color: var(--dark);
+            padding: 2rem 3rem;
+            border-radius: 12px;
+            text-align: center;
+            min-width: 200px;
+            transition: transform 0.2s;
+        }
+        .download-card:hover { transform: translateY(-5px); }
+        .download-card .os-icon { font-size: 3rem; margin-bottom: 1rem; }
+        .download-card h3 { margin-bottom: 0.5rem; }
+        .download-card p { color: var(--gray); font-size: 0.9rem; margin-bottom: 1rem; }
+        .download-card .btn { width: 100%; justify-content: center; }
+
+        footer {
+            padding: 3rem 2rem;
+            background: var(--dark);
+            color: #9CA3AF;
+            text-align: center;
+        }
+        .footer-links { display: flex; justify-content: center; gap: 2rem; margin-bottom: 2rem; flex-wrap: wrap; }
+        .footer-links a { color: #9CA3AF; text-decoration: none; transition: color 0.2s; }
+        .footer-links a:hover { color: white; }
+
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2.5rem; }
+            .hero .tagline { font-size: 1.1rem; }
+            .demo-grid { grid-template-columns: 1fr; }
+            .nav-links { gap: 0.8rem; }
+            .nav-links a:not(.lang-switch):not(.github-btn) { display: none; }
+            .screenshot-placeholder { height: 300px; }
+            .download-card { min-width: 280px; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="logo">AllWrite 2.0</div>
+        <div class="nav-links">
+            <a href="#features">기능</a>
+            <a href="#demo">데모</a>
+            <a href="#download">다운로드</a>
+            <a href="../" class="lang-switch">English</a>
+            <a href="https://github.com/randomwalk1225/AllWrite" target="_blank" class="github-btn">GitHub</a>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <h1>수학을 <span>직관적으로</span></h1>
+        <p class="tagline">
+            실시간 기하학 작도, 수식 입력, 그래프 그리기.<br>
+            점과 도형의 완벽한 동기화로 직관적인 수학 학습을 경험하세요.
+        </p>
+
+        <div class="screenshot-placeholder">
+            스크린샷 준비 중<br><br>
+            <small>screenshots/main.png 추가 필요</small>
+        </div>
+
+        <div class="cta-buttons">
+            <a href="#download" class="btn btn-primary">무료 다운로드</a>
+            <a href="https://github.com/randomwalk1225/AllWrite" class="btn btn-secondary" target="_blank">GitHub에서 보기</a>
+        </div>
+    </section>
+
+    <section class="features" id="features">
+        <h2 class="section-title">주요 기능</h2>
+        <p class="section-subtitle">수학 학습에 필요한 모든 도구를 하나의 앱에서</p>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">📐</div>
+                <h3>기하학 도구</h3>
+                <p>점, 선분, 직선, 원, 다각형 등 다양한 기하학 도형을 정확하게 작도할 수 있습니다.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔄</div>
+                <h3>실시간 동기화</h3>
+                <p>점을 드래그하면 연결된 모든 도형이 실시간으로 변형됩니다. 기하학적 관계를 직관적으로 이해하세요.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">✏️</div>
+                <h3>자유 드로잉</h3>
+                <p>Krita 스타일의 브러시 엔진으로 자연스러운 펜 스트로크를 제공합니다.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3>수식 & 그래프</h3>
+                <p>수학 수식을 입력하고 함수 그래프를 그려 시각화할 수 있습니다.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">♾️</div>
+                <h3>무한 캔버스</h3>
+                <p>제한 없이 자유롭게 작업하세요. 줌, 팬 기능으로 넓은 공간을 활용합니다.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">💾</div>
+                <h3>내보내기</h3>
+                <p>작업물을 PDF, 이미지로 내보내 수업 자료나 과제로 활용하세요.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="demo" id="demo">
+        <h2 class="section-title">기능 데모</h2>
+        <p class="section-subtitle">점과 도형의 완벽한 동기화를 확인하세요</p>
+
+        <div class="demo-grid">
+            <div class="demo-item">
+                <div class="demo-image">GIF 준비 중<br><small>polygon-demo.gif</small></div>
+                <div class="demo-text">
+                    <h3>정다각형 작도</h3>
+                    <p>중심점과 반지름점으로 정다각형을 그리고, 드래그로 실시간 변형하세요.</p>
+                </div>
+            </div>
+            <div class="demo-item">
+                <div class="demo-image">GIF 준비 중<br><small>circle-demo.gif</small></div>
+                <div class="demo-text">
+                    <h3>원 작도</h3>
+                    <p>중심-반지름, 지름, 세 점을 지나는 원 등 다양한 방식으로 원을 그립니다.</p>
+                </div>
+            </div>
+            <div class="demo-item">
+                <div class="demo-image">GIF 준비 중<br><small>midpoint-demo.gif</small></div>
+                <div class="demo-text">
+                    <h3>중점 & 내분점</h3>
+                    <p>두 점의 중점, 내분점을 자동 계산. 원래 점을 움직이면 따라갑니다.</p>
+                </div>
+            </div>
+            <div class="demo-item">
+                <div class="demo-image">GIF 준비 중<br><small>pen-demo.gif</small></div>
+                <div class="demo-text">
+                    <h3>자연스러운 펜</h3>
+                    <p>필압 감지 펜으로 자연스러운 필기와 스케치가 가능합니다.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="download" id="download">
+        <h2 class="section-title">지금 무료로 다운로드</h2>
+
+        <div class="download-options">
+            <div class="download-card">
+                <div class="os-icon">🪟</div>
+                <h3>Windows</h3>
+                <p>Windows 10/11</p>
+                <a href="https://github.com/randomwalk1225/AllWrite/releases/latest" class="btn btn-primary" target="_blank">다운로드</a>
+            </div>
+            <div class="download-card">
+                <div class="os-icon">🍎</div>
+                <h3>macOS</h3>
+                <p>macOS 11+</p>
+                <a href="https://github.com/randomwalk1225/AllWrite/releases/latest" class="btn btn-primary" target="_blank">다운로드</a>
+            </div>
+            <div class="download-card">
+                <div class="os-icon">🤖</div>
+                <h3>Android</h3>
+                <p>Android 8+</p>
+                <a href="#" class="btn btn-secondary" style="pointer-events: none; opacity: 0.6;">준비 중</a>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-links">
+            <a href="https://github.com/randomwalk1225/AllWrite" target="_blank">GitHub</a>
+            <a href="https://github.com/randomwalk1225/AllWrite/issues" target="_blank">버그 리포트</a>
+            <a href="mailto:randomwalk1225@gmail.com">연락처</a>
+            <a href="../">English</a>
+        </div>
+        <p>
+            MIT License | 개발자: Binary<br>
+            AllWrite 2.0 - 수학을 더 직관적으로, 더 재미있게!
+        </p>
+    </footer>
+</body>
+</html>
