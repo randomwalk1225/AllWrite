@@ -50,6 +50,16 @@
   z-index: 1000;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   pointer-events: auto;
+  transition: all 0.3s ease;
+}
+
+/* 겹칠 때 카메라 버튼 아래(오른쪽 하단)로 이동 - JavaScript로 클래스 추가 */
+.canvas-writing-button.repositioned {
+  top: auto;
+  bottom: 60px;
+  left: auto;
+  right: 16px;
+  transform: none;
 }
 
 .expression-list {

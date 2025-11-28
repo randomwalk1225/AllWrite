@@ -65,7 +65,8 @@
     .toolbar {
       position: fixed;
       top: 20px;
-      right: 20px;
+      left: 50%;
+      transform: translateX(-50%);
       background: rgba(255, 255, 255, 0.95);
       padding: 12px;
       border-radius: 8px;
@@ -253,12 +254,7 @@
     </button>
     <button class="tool-button" id="rectangleBtn" onclick="setTool('rectangle')" title="사각형">▢</button>
     <button class="tool-button" id="eraserBtn" onclick="setTool('eraser')" title="지우개">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M16.24 3.56l4.2 4.2-10.8 10.8-4.2-4.2 10.8-10.8z" fill="#7BB4E8"/>
-        <path d="M5.44 14.36l4.2 4.2-4.9 1.4c-.4.1-.8-.2-.8-.6-.1-.2 0-.4.1-.6l1.4-4.4z" fill="#E8E8E8"/>
-        <path d="M16.24 3.56l4.2 4.2-10.8 10.8-4.2-4.2 10.8-10.8z" stroke="#333" stroke-width="1.5" stroke-linejoin="round"/>
-        <rect x="2" y="19" width="20" height="2" rx="1" fill="#333"/>
-      </svg>
+      <img src="/img/eraser.png" width="24" height="24" alt="지우개" style="object-fit: contain;" />
     </button>
 
     <div class="divider"></div>
@@ -1114,8 +1110,19 @@
       }
 
       isDraggingToolbar = true
-      toolbarOffsetX = e.clientX - toolbar.offsetLeft
-      toolbarOffsetY = e.clientY - toolbar.offsetTop
+
+      // Get actual position (accounting for transform)
+      const rect = toolbar.getBoundingClientRect()
+
+      // Clear transform and set actual position
+      toolbar.style.transform = 'none'
+      toolbar.style.left = rect.left + 'px'
+      toolbar.style.top = rect.top + 'px'
+      toolbar.style.right = 'auto'
+      toolbar.style.bottom = 'auto'
+
+      toolbarOffsetX = e.clientX - rect.left
+      toolbarOffsetY = e.clientY - rect.top
       toolbar.style.cursor = 'grabbing'
     })
 
