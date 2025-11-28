@@ -53,14 +53,6 @@
   transition: all 0.3s ease;
 }
 
-/* 겹칠 때 카메라 버튼 아래(오른쪽 하단)로 이동 - JavaScript로 클래스 추가 */
-.canvas-writing-button.repositioned {
-  top: auto;
-  bottom: 60px;
-  left: auto;
-  right: 16px;
-  transform: none;
-}
 
 .expression-list {
   display: flex;

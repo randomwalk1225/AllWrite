@@ -4483,7 +4483,11 @@ export function GraphCanvas() {
           }}
           title="Select tool - Click: select object, Drag: free-form lasso select, Shift+Click: multi-select, Handles: resize/rotate, Delete: delete, Ctrl+[: send to back, Ctrl+]: bring to front"
         >
-          ◲
+          <img
+            src="/img/boundbox-다음에서-변환-png.svg"
+            alt="Select"
+            style={{ width: '22px', height: '22px' }}
+          />
         </button>
 
         {/* Copy & Paste button */}
@@ -4615,12 +4619,11 @@ export function GraphCanvas() {
             }}
             title="Eraser tool - Click and drag over objects to delete (hover shows preview)"
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M16.24 3.56l4.2 4.2-10.8 10.8-4.2-4.2 10.8-10.8z" fill="#7BB4E8"/>
-              <path d="M5.44 14.36l4.2 4.2-4.9 1.4c-.4.1-.8-.2-.8-.6-.1-.2 0-.4.1-.6l1.4-4.4z" fill="#E8E8E8"/>
-              <path d="M16.24 3.56l4.2 4.2-10.8 10.8-4.2-4.2 10.8-10.8z" stroke="#333" strokeWidth="1.5" strokeLinejoin="round"/>
-              <rect x="2" y="19" width="20" height="2" rx="1" fill="#333"/>
-            </svg>
+            <img
+              src="/img/eraser-다음에서-변환-png.svg"
+              alt="Eraser"
+              style={{ width: '30px', height: '30px' }}
+            />
           </button>
 
           {/* Eraser thickness button */}

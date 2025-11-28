@@ -20,7 +20,6 @@ function App() {
   const splitPanelRef = useRef<SplitPanelHandle>(null)
   const graphContainerRef = useRef<HTMLDivElement>(null)
   const writingButtonRef = useRef<HTMLButtonElement>(null)
-  const [isButtonRepositioned, setIsButtonRepositioned] = useState(false)
   const deselectAllExpressions = useStore((state) => state.deselectAllExpressions)
   const activePanelTab = useStore((state) => state.activePanelTab)
   const pages = useStore((state) => state.pages)
@@ -107,47 +106,6 @@ function App() {
     }
   }, [pages, currentPageIndex, addPage, removePage, switchPage])
 
-  // 바탕화면 쓰기 버튼과 도구 패널 충돌 감지
-  useEffect(() => {
-    const checkCollision = () => {
-      const writingButton = writingButtonRef.current
-      const toolPanel = document.querySelector('[style*="top: 16px"][style*="left: 16px"]') as HTMLElement
-
-      if (!writingButton || !toolPanel) return
-
-      // 버튼이 repositioned 상태가 아닐 때만 충돌 체크
-      const buttonRect = writingButton.getBoundingClientRect()
-      const panelRect = toolPanel.getBoundingClientRect()
-
-      // 두 요소가 겹치는지 확인
-      const isOverlapping = !(
-        buttonRect.right < panelRect.left ||
-        buttonRect.left > panelRect.right ||
-        buttonRect.bottom < panelRect.top ||
-        buttonRect.top > panelRect.bottom
-      )
-
-      setIsButtonRepositioned(isOverlapping)
-    }
-
-    // 초기 체크
-    setTimeout(checkCollision, 100)
-
-    // 리사이즈 시 체크
-    window.addEventListener('resize', checkCollision)
-
-    // ResizeObserver로 컨테이너 크기 변화 감지
-    const observer = new ResizeObserver(checkCollision)
-    const container = document.querySelector('.canvas-container')
-    if (container) {
-      observer.observe(container)
-    }
-
-    return () => {
-      window.removeEventListener('resize', checkCollision)
-      observer.disconnect()
-    }
-  }, [])
 
   const handleOpenWriting = () => {
     if (window.electron?.openWritingWindow) {
@@ -279,7 +237,7 @@ function App() {
           <div className="canvas-container">
             <button
               ref={writingButtonRef}
-              className={`writing-button canvas-writing-button ${isButtonRepositioned ? 'repositioned' : ''}`}
+              className="writing-button canvas-writing-button"
               onClick={handleOpenWriting}
               title="모니터에 필기"
             >
