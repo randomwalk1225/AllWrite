@@ -2267,6 +2267,7 @@ const KonvaDrawingLayerComponent = (
         top: 0,
         left: 0,
         zIndex: 3,
+        touchAction: "none", // Prevent browser scroll/zoom on touch for drawing
         pointerEvents:
           (drawingTool === "pen" ||
             drawingTool === "highlighter" ||
@@ -2286,6 +2287,9 @@ const KonvaDrawingLayerComponent = (
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
+      onTouchStart={handleMouseDown}
+      onTouchMove={handleMouseMove}
+      onTouchEnd={handleMouseUp}
     >
       <Layer ref={layerRef}>
         {/* Render all images first (so they appear behind everything) */}
