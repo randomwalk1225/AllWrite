@@ -1288,8 +1288,74 @@ export function GraphCanvas() {
     }
 
     canvas.addEventListener('wheel', handleWheel, { passive: false })
-    return () => canvas.removeEventListener('wheel', handleWheel)
-  }, [highlightAxis, zoomAxis])
+
+    // Touch: pinch-to-zoom and two-finger pan
+    let lastTouches: { x: number; y: number }[] = []
+    let lastPinchDist = 0
+
+    const getTouchCenter = (touches: TouchList) => ({
+      x: (touches[0].clientX + touches[1].clientX) / 2 - rect.left,
+      y: (touches[0].clientY + touches[1].clientY) / 2 - rect.top,
+    })
+
+    const getTouchDist = (touches: TouchList) =>
+      Math.sqrt(
+        Math.pow(touches[0].clientX - touches[1].clientX, 2) +
+        Math.pow(touches[0].clientY - touches[1].clientY, 2)
+      )
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault()
+        lastPinchDist = getTouchDist(e.touches)
+        const c = getTouchCenter(e.touches)
+        lastTouches = [{ x: c.x, y: c.y }]
+      }
+    }
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault()
+        const newDist = getTouchDist(e.touches)
+        const center = getTouchCenter(e.touches)
+
+        // Pinch zoom
+        if (lastPinchDist > 0) {
+          const zoomFactor = newDist / lastPinchDist
+          useStore.getState().zoom(zoomFactor, center.x, center.y)
+        }
+
+        // Two-finger pan
+        if (lastTouches.length > 0) {
+          const prev = lastTouches[0]
+          const dx = (center.x - prev.x) / view.scale
+          const dy = (center.y - prev.y) / view.scale
+          useStore.getState().pan(-dx, dy)
+        }
+
+        lastPinchDist = newDist
+        lastTouches = [{ x: center.x, y: center.y }]
+      }
+    }
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        lastPinchDist = 0
+        lastTouches = []
+      }
+    }
+
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false })
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false })
+    canvas.addEventListener('touchend', handleTouchEnd)
+
+    return () => {
+      canvas.removeEventListener('wheel', handleWheel)
+      canvas.removeEventListener('touchstart', handleTouchStart)
+      canvas.removeEventListener('touchmove', handleTouchMove)
+      canvas.removeEventListener('touchend', handleTouchEnd)
+    }
+  }, [highlightAxis, zoomAxis, view.scale])
 
   // Check if click is on an image or resize handle
   const getImageAtPoint = (canvasX: number, canvasY: number): { id: string; handle?: string } | null => {
@@ -3950,14 +4016,18 @@ export function GraphCanvas() {
   }
 
   // Base button style (without positioning)
+  const isMobile = canvasSize.width < 768
+  const btnSize = isMobile ? '44px' : '40px'
   const buttonStyle = {
-    width: '40px',
-    height: '40px',
+    width: btnSize,
+    height: btnSize,
+    minWidth: '44px', // Minimum touch target (Apple HIG)
+    minHeight: '44px',
     borderRadius: '8px',
     border: '1px solid #ccc',
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     cursor: 'pointer',
-    fontSize: '20px',
+    fontSize: isMobile ? '22px' : '20px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
