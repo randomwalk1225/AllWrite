@@ -2,10 +2,10 @@
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "npm install && BUILD_TARGET=web npm run build:web"
+    "buildCommand": "npm install --omit=dev || true"
   },
   "deploy": {
-    "startCommand": "npm start",
+    "startCommand": "node server.js",
     "restartPolicyType": "ON_FAILURE"
   }
 }
