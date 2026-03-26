@@ -744,10 +744,11 @@ const KonvaDrawingLayerComponent = (
 
   // Note: rasterizeDrawings() removed - we now draw directly to canvas in Krita style
 
-  // Canvas constants
-  const CANVAS_SIZE = 10000; // Large canvas for unlimited drawing
-  const CANVAS_CENTER = 5000; // Center of canvas = graph origin (0, 0)
-  const PIXELS_PER_UNIT = 100; // 1 graph unit = 100 pixels
+  // Canvas constants - smaller for mobile to reduce memory usage
+  const isMobileDevice = width < 768 || ('ontouchstart' in window);
+  const CANVAS_SIZE = isMobileDevice ? 4000 : 10000;
+  const CANVAS_CENTER = CANVAS_SIZE / 2;
+  const PIXELS_PER_UNIT = isMobileDevice ? 50 : 100;
 
   // Graph coordinate to canvas pixel coordinate
   const graphToCanvasPixel = useCallback(
@@ -780,67 +781,71 @@ const KonvaDrawingLayerComponent = (
     }
   }, []);
 
-  // Redraw entire canvas when drawings change (for undo/redo support)
+  // Track how many drawings we've already rasterized
+  const rasterizedCountRef = useRef(0);
+
+  // Helper: rasterize a single drawing onto the canvas
+  const rasterizeOneDrawing = useCallback((ctx: CanvasRenderingContext2D, drawing: any) => {
+    if (drawing.points.length < 2) return;
+
+    const canvasPoints = drawing.points.map((p: any) => {
+      const pixel = graphToCanvasPixel(p.x, p.y);
+      return [pixel.x, pixel.y];
+    });
+
+    const canvasThickness = drawing.width * (PIXELS_PER_UNIT / view.scale);
+    const stroke = getStroke(canvasPoints, {
+      size: canvasThickness,
+      thinning: 0,
+      smoothing: drawing.tool === 'eraser' ? 0.2 : 0.8,
+      streamline: drawing.tool === 'eraser' ? 0.2 : 0.3,
+      easing: (t: number) => t,
+      start: { taper: 0, cap: true },
+      end: { taper: 0, cap: true },
+    });
+
+    if (drawing.tool === 'eraser') {
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.fillStyle = '#000000';
+    } else {
+      ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = drawing.tool === "highlighter" ? hexToRgba(drawing.color, 0.3) : drawing.color;
+    }
+
+    ctx.beginPath();
+    if (stroke.length > 0) {
+      ctx.moveTo(stroke[0][0], stroke[0][1]);
+      for (let i = 1; i < stroke.length; i++) {
+        ctx.lineTo(stroke[i][0], stroke[i][1]);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.globalCompositeOperation = "source-over";
+  }, [graphToCanvasPixel, view.scale]);
+
+  // Incremental rasterization: only draw new strokes, full redraw on undo
   useEffect(() => {
     const canvas = globalRasterCanvasRef.current;
     if (!canvas) return;
-
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Redraw all drawings in order
-    drawings.forEach((drawing) => {
-      if (drawing.points.length < 2) return;
-
-      // Convert graph coordinates to canvas pixels
-      const canvasPoints = drawing.points.map((p) => {
-        const pixel = graphToCanvasPixel(p.x, p.y);
-        return [pixel.x, pixel.y];
-      });
-
-      // Generate stroke with perfect-freehand
-      // Convert screen pixels to canvas pixels: screen 1px = canvas (PIXELS_PER_UNIT / view.scale) px
-      const canvasThickness = drawing.width * (PIXELS_PER_UNIT / view.scale);
-      const stroke = getStroke(canvasPoints, {
-        size: canvasThickness,
-        thinning: 0,  // No thinning for consistent line width
-        smoothing: drawing.tool === 'eraser' ? 0.2 : 0.8,  // High smoothing for pen/highlighter curves
-        streamline: drawing.tool === 'eraser' ? 0.2 : 0.3,  // Lower streamline to preserve detail
-        easing: (t) => t,
-        start: { taper: 0, cap: true },
-        end: { taper: 0, cap: true },
-      });
-
-      // Set composite operation based on tool type
-      if (drawing.tool === 'eraser') {
-        ctx.globalCompositeOperation = "destination-out";
-        ctx.fillStyle = '#000000'; // Color doesn't matter for eraser
-      } else {
-        ctx.globalCompositeOperation = "source-over";
-        ctx.fillStyle = drawing.tool === "highlighter" ? hexToRgba(drawing.color, 0.3) : drawing.color;
+    if (drawings.length < rasterizedCountRef.current) {
+      // Undo/delete happened - full redraw needed
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawings.forEach((d) => rasterizeOneDrawing(ctx, d));
+      rasterizedCountRef.current = drawings.length;
+    } else if (drawings.length > rasterizedCountRef.current) {
+      // New strokes added - only draw the new ones
+      for (let i = rasterizedCountRef.current; i < drawings.length; i++) {
+        rasterizeOneDrawing(ctx, drawings[i]);
       }
+      rasterizedCountRef.current = drawings.length;
+    }
 
-      // Draw stroke
-      ctx.beginPath();
-      if (stroke.length > 0) {
-        ctx.moveTo(stroke[0][0], stroke[0][1]);
-        for (let i = 1; i < stroke.length; i++) {
-          ctx.lineTo(stroke[i][0], stroke[i][1]);
-        }
-        ctx.closePath();
-        ctx.fill();
-      }
-
-      // Reset composite operation after each drawing
-      ctx.globalCompositeOperation = "source-over";
-    });
-
-    // Trigger re-render
     setRasterCanvasVersion((prev) => prev + 1);
-  }, [drawings]);
+  }, [drawings, rasterizeOneDrawing]);
 
   // Update Konva layer when canvas version changes
   useEffect(() => {
@@ -855,9 +860,9 @@ const KonvaDrawingLayerComponent = (
       const canvas = globalRasterCanvasRef.current;
       if (!canvas) return;
 
-      // Constants
-      const CANVAS_CENTER = 5000;
-      const PIXELS_PER_UNIT = 100;
+      // Use component-level constants (responsive to mobile)
+      const _CANVAS_CENTER = CANVAS_CENTER;
+      const _PIXELS_PER_UNIT = PIXELS_PER_UNIT;
 
       // Calculate current viewport bounds in graph coordinates
       const viewCenterX = view.center.x;
@@ -868,10 +873,10 @@ const KonvaDrawingLayerComponent = (
       const viewBottom = viewCenterY - height / 2 / (view.scale * view.scaleY);
 
       // Convert to canvas pixel coordinates
-      const topLeftX = CANVAS_CENTER + viewLeft * PIXELS_PER_UNIT;
-      const topLeftY = CANVAS_CENTER - viewTop * PIXELS_PER_UNIT;
-      const bottomRightX = CANVAS_CENTER + viewRight * PIXELS_PER_UNIT;
-      const bottomRightY = CANVAS_CENTER - viewBottom * PIXELS_PER_UNIT;
+      const topLeftX = _CANVAS_CENTER + viewLeft * _PIXELS_PER_UNIT;
+      const topLeftY = _CANVAS_CENTER - viewTop * _PIXELS_PER_UNIT;
+      const bottomRightX = _CANVAS_CENTER + viewRight * _PIXELS_PER_UNIT;
+      const bottomRightY = _CANVAS_CENTER - viewBottom * _PIXELS_PER_UNIT;
 
       const cropX = topLeftX;
       const cropY = topLeftY;

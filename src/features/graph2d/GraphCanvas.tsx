@@ -4047,9 +4047,11 @@ export function GraphCanvas() {
   const buttonGroupStyle = (position: { top?: string; bottom?: string; left?: string; right?: string }) => ({
     position: 'absolute' as const,
     display: 'flex',
-    gap: '8px',
+    flexWrap: 'wrap' as const,
+    gap: isMobile ? '4px' : '8px',
     zIndex: 1000,
     pointerEvents: 'none' as const,
+    maxWidth: isMobile ? 'calc(100vw - 32px)' : undefined,
     ...position,
   })
 
@@ -4116,7 +4118,7 @@ export function GraphCanvas() {
       </div>
 
       {/* Top-right button group: Undo, Redo, Reset */}
-      <div style={buttonGroupStyle({ top: '16px', right: '16px' })}>
+      <div style={buttonGroupStyle({ top: isMobile ? '8px' : '16px', right: isMobile ? '8px' : '16px' })}>
         {/* Undo button */}
         <button
           onClick={undo}
@@ -4271,7 +4273,7 @@ export function GraphCanvas() {
       )}
 
       {/* Top-left button group: Drawing tools */}
-      <div style={buttonGroupStyle({ top: '16px', left: '16px' })}>
+      <div style={buttonGroupStyle({ top: isMobile ? '8px' : '16px', left: isMobile ? '8px' : '16px' })}>
         {/* Pen tool group */}
         <div style={{ display: 'flex', position: 'relative' }}>
           <button
