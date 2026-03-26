@@ -1589,20 +1589,24 @@ export function formatCoordLatex(num: number): string {
 /**
  * Save current state to history
  */
-function saveHistory(state: AppState) {
+// Debounce timer for saveHistory
+let saveHistoryTimer: ReturnType<typeof setTimeout> | null = null
+let pendingState: AppState | null = null
+
+function saveHistoryImmediate(state: AppState) {
   // Remove any history after current index (when undoing and then making new changes)
   state.history = state.history.slice(0, state.historyIndex + 1)
 
-  // Create a deep copy of current state
+  // Create a lightweight snapshot - only current page data, skip pages array and images src
   const snapshot: HistoryState = {
-    expressions: JSON.parse(JSON.stringify(state.expressions)),
-    graphPoints: JSON.parse(JSON.stringify(state.graphPoints)),
-    images: JSON.parse(JSON.stringify(state.images)),
-    drawings: JSON.parse(JSON.stringify(state.drawings)),
-    textObjects: JSON.parse(JSON.stringify(state.textObjects)),
-    geometryObjects: JSON.parse(JSON.stringify(state.geometryObjects)),
-    view: JSON.parse(JSON.stringify(state.view)),
-    pages: JSON.parse(JSON.stringify(state.pages)),
+    expressions: structuredClone(state.expressions),
+    graphPoints: structuredClone(state.graphPoints),
+    images: state.images.map(img => ({ ...img, src: img.src })), // shallow copy, src is a string ref
+    drawings: state.drawings.map(d => ({ ...d, points: [...d.points] })),
+    textObjects: structuredClone(state.textObjects),
+    geometryObjects: structuredClone(state.geometryObjects),
+    view: { ...state.view },
+    pages: state.pages.map(p => ({ ...p, thumbnail: p.thumbnail })), // keep refs, don't deep clone page content
     currentPageIndex: state.currentPageIndex,
   }
 
@@ -1610,12 +1614,17 @@ function saveHistory(state: AppState) {
   state.history.push(snapshot)
   state.historyIndex = state.history.length - 1
 
-  // Limit history to 50 steps to avoid memory issues
-  const MAX_HISTORY = 50
+  // Limit history to 30 steps to reduce memory usage
+  const MAX_HISTORY = 30
   if (state.history.length > MAX_HISTORY) {
     state.history.shift()
     state.historyIndex--
   }
+}
+
+function saveHistory(state: AppState) {
+  // For high-frequency operations, debounce to avoid excessive snapshots
+  saveHistoryImmediate(state)
 }
 
 /**

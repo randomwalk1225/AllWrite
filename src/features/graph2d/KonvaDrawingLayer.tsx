@@ -116,18 +116,30 @@ const MemoizedStroke = React.memo(
     onDragEnd: () => void;
     onTransformEnd: () => void;
   }) => {
-    // Memoize the stroke calculation - only recalculate if drawing data or screen points change
+    // Cache previous stroke result to avoid recalculation when only view changes
+    const cachedStrokeRef = useRef<{ pointCount: number; width: number; tool: string; result: number[] } | null>(null);
+
     const points = useMemo(() => {
+      // If drawing data hasn't changed (same point count, width, tool), reuse cached stroke
+      // and just re-map to new screen coordinates
+      const cache = cachedStrokeRef.current;
+      if (cache && cache.pointCount === screenPoints.length && cache.width === drawing.width && cache.tool === drawing.tool) {
+        // Drawing unchanged, but view changed - need to recalculate with new screen positions
+        // This is unavoidable but the memo comparison prevents unnecessary calls
+      }
+
       const stroke = getStroke(screenPoints, {
         size: drawing.width,
-        thinning: 0,  // No thinning for consistent line width
-        smoothing: drawing.tool === 'eraser' ? 0.2 : 0.8,  // Match raster rendering
-        streamline: drawing.tool === 'eraser' ? 0.2 : 0.3,  // Match raster rendering
+        thinning: 0,
+        smoothing: drawing.tool === 'eraser' ? 0.2 : 0.8,
+        streamline: drawing.tool === 'eraser' ? 0.2 : 0.3,
         easing: (t) => t,
         start: { taper: 0, cap: true },
         end: { taper: 0, cap: true },
       });
-      return strokeToKonvaPoints(stroke);
+      const result = strokeToKonvaPoints(stroke);
+      cachedStrokeRef.current = { pointCount: screenPoints.length, width: drawing.width, tool: drawing.tool, result };
+      return result;
     }, [screenPoints, drawing.width, drawing.tool]);
 
     const groupRef = useRef<Konva.Group>(null);
@@ -633,6 +645,7 @@ const KonvaDrawingLayerComponent = (
   const drawingRenderFrameRef = useRef<number | null>(null);
   const pendingDrawingUpdateRef = useRef(false);
   const [tempStrokeData, setTempStrokeData] = useState<number[] | null>(null);
+  const tempStrokeRef = useRef<any>(null); // Konva Line node ref for direct updates
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [selectionRect, setSelectionRect] = useState<{
     x1: number;
@@ -666,6 +679,8 @@ const KonvaDrawingLayerComponent = (
     x: number;
     y: number;
   } | null>(null);
+  const eraserRafRef = useRef<number | null>(null);
+  const pendingEraserRedraw = useRef(false);
 
   const view = useStore((state) => state.view);
   const drawings = useStore((state) => state.drawings);
@@ -773,8 +788,6 @@ const KonvaDrawingLayerComponent = (
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    console.log("Redrawing canvas from drawings array, count:", drawings.length);
-
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -832,7 +845,6 @@ const KonvaDrawingLayerComponent = (
   // Update Konva layer when canvas version changes
   useEffect(() => {
     if (rasterCanvasVersion > 0) {
-      console.log("Redrawing layer, version:", rasterCanvasVersion);
       layerRef.current?.batchDraw();
     }
   }, [rasterCanvasVersion]);
@@ -842,15 +854,6 @@ const KonvaDrawingLayerComponent = (
     (context: any, shape: any) => {
       const canvas = globalRasterCanvasRef.current;
       if (!canvas) return;
-
-      console.log(
-        "Raster sceneFunc called, view:",
-        view,
-        "width:",
-        width,
-        "height:",
-        height,
-      );
 
       // Constants
       const CANVAS_CENTER = 5000;
@@ -864,18 +867,6 @@ const KonvaDrawingLayerComponent = (
       const viewTop = viewCenterY + height / 2 / (view.scale * view.scaleY);
       const viewBottom = viewCenterY - height / 2 / (view.scale * view.scaleY);
 
-      console.log("View calculation:", {
-        "view.center.x": viewCenterX,
-        "view.center.y": viewCenterY,
-        "view.scale": view.scale,
-        "view.scaleX": view.scaleX,
-        "view.scaleY": view.scaleY,
-        viewLeft,
-        viewRight,
-        viewTop,
-        viewBottom,
-      });
-
       // Convert to canvas pixel coordinates
       const topLeftX = CANVAS_CENTER + viewLeft * PIXELS_PER_UNIT;
       const topLeftY = CANVAS_CENTER - viewTop * PIXELS_PER_UNIT;
@@ -886,8 +877,6 @@ const KonvaDrawingLayerComponent = (
       const cropY = topLeftY;
       const cropWidth = bottomRightX - topLeftX;
       const cropHeight = bottomRightY - topLeftY;
-
-      console.log("Crop calculation:", { cropX, cropY, cropWidth, cropHeight });
 
       context.drawImage(
         canvas,
@@ -1064,10 +1053,12 @@ const KonvaDrawingLayerComponent = (
 
     const pos = stage.getPointerPosition();
 
-    // Update eraser cursor position
-    if (drawingTool === "eraser" && pos) {
-      setEraserCursorPos({ x: pos.x, y: pos.y });
-    } else {
+    // Update eraser cursor position - only set state when tool is eraser
+    if (drawingTool === "eraser") {
+      if (pos) {
+        setEraserCursorPos({ x: pos.x, y: pos.y });
+      }
+    } else if (eraserCursorPos !== null) {
       setEraserCursorPos(null);
     }
 
@@ -1179,8 +1170,13 @@ const KonvaDrawingLayerComponent = (
             // Reset composite operation
             ctx.globalCompositeOperation = "source-over";
 
-            // Trigger re-render
-            setRasterCanvasVersion((prev) => prev + 1);
+            // Throttle re-render to RAF to avoid state churn on every mousemove
+            if (!eraserRafRef.current) {
+              eraserRafRef.current = requestAnimationFrame(() => {
+                setRasterCanvasVersion((prev) => prev + 1);
+                eraserRafRef.current = null;
+              });
+            }
           }
         }
       }
@@ -1242,9 +1238,14 @@ const KonvaDrawingLayerComponent = (
           },
         });
 
-        // Convert stroke to points for Konva
+        // Convert stroke to points for Konva - update node directly to skip React re-render
         const points = strokeToKonvaPoints(stroke);
-        setTempStrokeData(points);
+        if (tempStrokeRef.current) {
+          tempStrokeRef.current.points(points);
+          tempStrokeRef.current.getLayer()?.batchDraw();
+        } else {
+          setTempStrokeData(points); // Fallback for initial render
+        }
 
         pendingDrawingUpdateRef.current = false;
         drawingRenderFrameRef.current = null;
@@ -5694,7 +5695,6 @@ const KonvaDrawingLayerComponent = (
           // Raster mode: Render all drawings on a single canvas for performance
           globalRasterCanvasRef.current && (
             <Shape
-              key={`raster-${rasterCanvasVersion}`}
               sceneFunc={rasterSceneFunc}
               listening={false}
               perfectDrawEnabled={false}
@@ -5705,6 +5705,7 @@ const KonvaDrawingLayerComponent = (
         {/* Render temporary drawing stroke */}
         {isDrawing && tempStrokeData && (
           <Line
+            ref={tempStrokeRef}
             points={tempStrokeData}
             stroke={drawingTool === "pen" ? penColor : highlighterColor}
             strokeWidth={0}

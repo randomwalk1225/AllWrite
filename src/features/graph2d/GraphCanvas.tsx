@@ -1,7 +1,8 @@
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react'
 import { useStore, formatCoordLatex } from '../../store'
+import { useShallow } from 'zustand/react/shallow'
 import { GraphRenderer } from '../../core/render/renderer'
-import { compileExpression, sampleFunction, sampleImplicitFunction, evaluateExpression } from '../../core/math/evaluator'
+import { compileExpression, sampleFunction, sampleImplicitFunction, sampleParametric, samplePolar, evaluateExpression } from '../../core/math/evaluator'
 import { getVisibleBounds, screenToGraph, graphToScreen } from '../../core/geo/coordinates'
 import { findAllIntersections, findClosestIntersection, findAllIntercepts } from '../../core/math/intersection'
 import { KonvaDrawingLayer, type KonvaDrawingLayerHandle } from './KonvaDrawingLayer'
@@ -71,100 +72,148 @@ export function GraphCanvas() {
     currentPos: { x: number; y: number }
   } | null>(null)
 
+  // Data selectors - only these cause re-renders when values change
   const view = useStore((state) => state.view)
   const expressions = useStore((state) => state.expressions)
   const graphPoints = useStore((state) => state.graphPoints)
 
   // Create stable key from expressions to prevent unnecessary re-renders
-  // Only re-render base layer when expression content actually changes
   const expressionKeys = useMemo(
     () => expressions.map(e => `${e.id}-${e.input}-${e.kind}-${e.visible}-${e.selected}`).join('|'),
     [expressions]
   )
-  const addGraphPoint = useStore((state) => state.addGraphPoint)
-  const removeGraphPoint = useStore((state) => state.removeGraphPoint)
-  const clearGraphPoints = useStore((state) => state.clearGraphPoints)
+
   const images = useStore((state) => state.images)
-  const addImage = useStore((state) => state.addImage)
-  const updateImage = useStore((state) => state.updateImage)
-  const removeImage = useStore((state) => state.removeImage)
-  const clearAll = useStore((state) => state.clearAll)
-  const resetView = useStore((state) => state.resetView)
-  const zoomAxis = useStore((state) => state.zoomAxis)
-  const gridMode = useStore((state) => state.gridMode)
-  const setGridMode = useStore((state) => state.setGridMode)
-  const visibilityMode = useStore((state) => state.visibilityMode)
-  const setVisibilityMode = useStore((state) => state.setVisibilityMode)
-  const undo = useStore((state) => state.undo)
-  const redo = useStore((state) => state.redo)
-  const canUndo = useStore((state) => state.canUndo)
-  const canRedo = useStore((state) => state.canRedo)
-
-  // Drawing tools
   const drawings = useStore((state) => state.drawings)
-  const addDrawing = useStore((state) => state.addDrawing)
-  const removeDrawing = useStore((state) => state.removeDrawing)
-  const updateDrawing = useStore((state) => state.updateDrawing)
-  const clearDrawings = useStore((state) => state.clearDrawings)
-  const drawingTool = useStore((state) => state.drawingTool)
-  const setDrawingTool = useStore((state) => state.setDrawingTool)
-  const penColor = useStore((state) => state.penColor)
-  const setPenColor = useStore((state) => state.setPenColor)
-  const highlighterColor = useStore((state) => state.highlighterColor)
-  const setHighlighterColor = useStore((state) => state.setHighlighterColor)
-  const penThickness = useStore((state) => state.penThickness)
-  const setPenThickness = useStore((state) => state.setPenThickness)
-  const highlighterThickness = useStore((state) => state.highlighterThickness)
-  const setHighlighterThickness = useStore((state) => state.setHighlighterThickness)
-  const eraserThickness = useStore((state) => state.eraserThickness)
-  const setEraserThickness = useStore((state) => state.setEraserThickness)
-  const colorHistory = useStore((state) => state.colorHistory)
-
-  // Text objects
   const textObjects = useStore((state) => state.textObjects)
-  const addTextObject = useStore((state) => state.addTextObject)
-  const removeTextObject = useStore((state) => state.removeTextObject)
-  const updateTextObject = useStore((state) => state.updateTextObject)
-
-  // Geometry tools
   const geometryObjects = useStore((state) => state.geometryObjects)
-  const addGeometryObject = useStore((state) => state.addGeometryObject)
-  const updateGeometryObject = useStore((state) => state.updateGeometryObject)
-  const removeGeometryObject = useStore((state) => state.removeGeometryObject)
-  const geometryTool = useStore((state) => state.geometryTool)
-  const setGeometryTool = useStore((state) => state.setGeometryTool)
-  const creationState = useStore((state) => state.creationState)
-  const pointVisibilityMode = useStore((state) => state.pointVisibilityMode)
-  const setPointVisibilityMode = useStore((state) => state.setPointVisibilityMode)
-  const shapeRenderMode = useStore((state) => state.shapeRenderMode)
-  const setShapeRenderMode = useStore((state) => state.setShapeRenderMode)
-  const setCreationState = useStore((state) => state.setCreationState)
-  const addCreationPoint = useStore((state) => state.addCreationPoint)
-  const finishCreation = useStore((state) => state.finishCreation)
-  const cancelCreation = useStore((state) => state.cancelCreation)
-  const setRegularPolygonDialog = useStore((state) => state.setRegularPolygonDialog)
   const selectedIds = useStore((state) => state.selectedIds)
-  const setSelectedIds = useStore((state) => state.setSelectedIds)
-
-  // Page management
   const currentPageIndex = useStore((state) => state.currentPageIndex)
-  const updatePageThumbnail = useStore((state) => state.updatePageThumbnail)
+  const creationState = useStore((state) => state.creationState)
 
-  // Capture canvas thumbnail
+  // UI settings - grouped with useShallow to prevent re-render when unrelated settings change
+  const {
+    drawingTool, penColor, highlighterColor, penThickness,
+    highlighterThickness, eraserThickness, colorHistory,
+    gridMode, visibilityMode, geometryTool, pointVisibilityMode,
+    shapeRenderMode,
+  } = useStore(useShallow((state) => ({
+    drawingTool: state.drawingTool,
+    penColor: state.penColor,
+    highlighterColor: state.highlighterColor,
+    penThickness: state.penThickness,
+    highlighterThickness: state.highlighterThickness,
+    eraserThickness: state.eraserThickness,
+    colorHistory: state.colorHistory,
+    gridMode: state.gridMode,
+    visibilityMode: state.visibilityMode,
+    geometryTool: state.geometryTool,
+    pointVisibilityMode: state.pointVisibilityMode,
+    shapeRenderMode: state.shapeRenderMode,
+  })))
+
+  // Action functions - stable references, grouped to minimize subscriptions
+  const actions = useStore(useShallow((state) => ({
+    addGraphPoint: state.addGraphPoint,
+    removeGraphPoint: state.removeGraphPoint,
+    clearGraphPoints: state.clearGraphPoints,
+    addImage: state.addImage,
+    updateImage: state.updateImage,
+    removeImage: state.removeImage,
+    clearAll: state.clearAll,
+    resetView: state.resetView,
+    zoomAxis: state.zoomAxis,
+    setGridMode: state.setGridMode,
+    setVisibilityMode: state.setVisibilityMode,
+    undo: state.undo,
+    redo: state.redo,
+    canUndo: state.canUndo,
+    canRedo: state.canRedo,
+    addDrawing: state.addDrawing,
+    removeDrawing: state.removeDrawing,
+    updateDrawing: state.updateDrawing,
+    clearDrawings: state.clearDrawings,
+    setDrawingTool: state.setDrawingTool,
+    setPenColor: state.setPenColor,
+    setHighlighterColor: state.setHighlighterColor,
+    setPenThickness: state.setPenThickness,
+    setHighlighterThickness: state.setHighlighterThickness,
+    setEraserThickness: state.setEraserThickness,
+    addTextObject: state.addTextObject,
+    removeTextObject: state.removeTextObject,
+    updateTextObject: state.updateTextObject,
+    addGeometryObject: state.addGeometryObject,
+    updateGeometryObject: state.updateGeometryObject,
+    removeGeometryObject: state.removeGeometryObject,
+    setGeometryTool: state.setGeometryTool,
+    setCreationState: state.setCreationState,
+    addCreationPoint: state.addCreationPoint,
+    finishCreation: state.finishCreation,
+    cancelCreation: state.cancelCreation,
+    setPointVisibilityMode: state.setPointVisibilityMode,
+    setShapeRenderMode: state.setShapeRenderMode,
+    setRegularPolygonDialog: state.setRegularPolygonDialog,
+    setSelectedIds: state.setSelectedIds,
+    updatePageThumbnail: state.updatePageThumbnail,
+  })))
+
+  // Destructure actions for convenience (stable references - no re-render cost)
+  const {
+    addGraphPoint, removeGraphPoint, clearGraphPoints,
+    addImage, updateImage, removeImage, clearAll, resetView, zoomAxis,
+    setGridMode, setVisibilityMode, undo, redo, canUndo, canRedo,
+    addDrawing, removeDrawing, updateDrawing, clearDrawings,
+    setDrawingTool, setPenColor, setHighlighterColor,
+    setPenThickness, setHighlighterThickness, setEraserThickness,
+    addTextObject, removeTextObject, updateTextObject,
+    addGeometryObject, updateGeometryObject, removeGeometryObject,
+    setGeometryTool, setCreationState, addCreationPoint,
+    finishCreation, cancelCreation,
+    setPointVisibilityMode, setShapeRenderMode, setRegularPolygonDialog,
+    setSelectedIds, updatePageThumbnail,
+  } = actions
+
+  // Capture canvas thumbnail by compositing all canvas layers directly
   const captureCanvasThumbnail = useCallback(async () => {
-    const container = graphContainerRef.current
-    if (!container) return null
+    const baseCanvas = baseCanvasRef.current
+    const overlayCanvas = overlayCanvasRef.current
+    if (!baseCanvas || !overlayCanvas) return null
 
     try {
-      // Use html2canvas to capture the entire graph container
-      const canvas = await html2canvas(container, {
-        scale: 0.3, // Lower resolution for thumbnail
-        logging: false,
-        backgroundColor: '#ffffff'
-      })
+      const width = baseCanvas.width
+      const height = baseCanvas.height
+      if (width === 0 || height === 0) return null
 
-      // Convert to JPEG data URL
-      const dataURL = canvas.toDataURL('image/jpeg', 0.6)
+      // Create a temporary canvas to composite all layers
+      const tempCanvas = document.createElement('canvas')
+      const scale = 0.3
+      tempCanvas.width = width * scale
+      tempCanvas.height = height * scale
+      const ctx = tempCanvas.getContext('2d')
+      if (!ctx) return null
+
+      // White background
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height)
+
+      // Scale down
+      ctx.scale(scale, scale)
+
+      // Layer 1: Base canvas (grid, axes, function graphs)
+      ctx.drawImage(baseCanvas, 0, 0)
+
+      // Layer 2: Overlay canvas (points, images)
+      ctx.drawImage(overlayCanvas, 0, 0)
+
+      // Layer 3: Konva stage (drawings, geometry objects)
+      if (konvaStageRef.current) {
+        const konvaCanvas = konvaStageRef.current.toCanvas()
+        if (konvaCanvas) {
+          ctx.drawImage(konvaCanvas, 0, 0)
+        }
+      }
+
+      const dataURL = tempCanvas.toDataURL('image/jpeg', 0.6)
       return dataURL
     } catch (error) {
       console.error('Error capturing canvas thumbnail:', error)
@@ -172,26 +221,38 @@ export function GraphCanvas() {
     }
   }, [])
 
-  // Auto-capture thumbnail of current page periodically
+  // Auto-capture thumbnail - debounced, skip during active drawing
+  const thumbnailTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
-    // Wait a bit for rendering to complete, then capture
-    const timeoutId = setTimeout(() => {
+    // Skip capture while user is actively drawing (pen/highlighter/eraser)
+    if (drawingTool === 'pen' || drawingTool === 'highlighter' || drawingTool === 'eraser') {
+      return
+    }
+
+    if (thumbnailTimerRef.current) {
+      clearTimeout(thumbnailTimerRef.current)
+    }
+
+    thumbnailTimerRef.current = setTimeout(() => {
       captureCanvasThumbnail().then(thumbnail => {
         if (thumbnail) {
           updatePageThumbnail(currentPageIndex, thumbnail)
         }
       })
-    }, 500) // Delay to ensure rendering is complete
+      thumbnailTimerRef.current = null
+    }, 2000) // 2s debounce - only capture when idle
 
-    return () => clearTimeout(timeoutId)
+    return () => {
+      if (thumbnailTimerRef.current) {
+        clearTimeout(thumbnailTimerRef.current)
+      }
+    }
   }, [
     currentPageIndex,
-    expressions,
-    drawings,
-    textObjects,
-    geometryObjects,
-    images,
-    view,
+    drawingTool,
+    expressions.length,
+    drawings.length,
+    geometryObjects.length,
     captureCanvasThumbnail,
     updatePageThumbnail
   ])
@@ -229,7 +290,6 @@ export function GraphCanvas() {
         if (!hasVariables) continue
 
         try {
-          const compiled = compileExpression(expr.input)
           const bounds = getVisibleBounds(
             canvas.clientWidth,
             canvas.clientHeight,
@@ -237,17 +297,37 @@ export function GraphCanvas() {
           )
           const lineWidth = expr.selected ? 4 : 2
 
-          if (expr.kind === 'cartesian') {
+          if (expr.kind === 'parametric') {
+            // Parametric: "xExpr; yExpr" separated by semicolon
+            const parts = expr.input.split(';').map(s => s.trim())
+            if (parts.length === 2) {
+              // Strip optional "x=" or "y=" prefixes
+              const xInput = parts[0].replace(/^x\s*=\s*/i, '')
+              const yInput = parts[1].replace(/^y\s*=\s*/i, '')
+              const compiledX = compileExpression(xInput)
+              const compiledY = compileExpression(yInput)
+              const domain: [number, number] = expr.domain?.t || [0, 2 * Math.PI]
+              const points = sampleParametric(compiledX, compiledY, domain, 1000)
+              renderer.drawFunction(points, expr.color, view, lineWidth)
+            }
+          } else if (expr.kind === 'polar') {
+            // Polar: r = f(theta) or just f(theta)
+            const polarInput = expr.input.replace(/^r\s*=\s*/i, '')
+            const compiled = compileExpression(polarInput)
+            const domain: [number, number] = expr.domain?.theta || [0, 2 * Math.PI]
+            const points = samplePolar(compiled, domain, 1000)
+            renderer.drawFunction(points, expr.color, view, lineWidth)
+          } else if (expr.kind === 'cartesian') {
+            const compiled = compileExpression(expr.input)
             const domain: [number, number] = expr.domain?.x || [bounds.xMin, bounds.xMax]
             const points = sampleFunction(compiled, domain, 1000)
             renderer.drawFunction(points, expr.color, view, lineWidth)
           } else if (expr.kind === 'implicit') {
-            const contours = sampleImplicitFunction(compiled, bounds, 300)  // High resolution for accurate intersections
-            // Store contours data for click detection
+            const compiled = compileExpression(expr.input)
+            const contours = sampleImplicitFunction(compiled, bounds, 300)
             contoursDataRef.current.set(expr.id, contours)
             renderer.drawImplicitFunction(contours, expr.color, view, lineWidth)
           }
-          // TODO: Add support for parametric, polar
         } catch (error) {
           // Silently skip errors during typing (incomplete expressions)
           // Only log actual syntax errors, not "end of expression" errors

@@ -73,6 +73,10 @@ export function ExpressionEditor() {
           }
           input = '' // Points don't need an input expression
         }
+      } else if (kind === 'polar') {
+        input = mathJSExpr.replace(/^r\s*=\s*/i, '')
+      } else if (kind === 'parametric') {
+        input = mathJSExpr
       } else if (kind === 'implicit') {
         input = toImplicitForm(mathJSExpr)
       } else if (kind === 'cartesian') {
@@ -147,13 +151,15 @@ export function ExpressionEditor() {
           }
           input = '' // Points don't need an input expression
         }
+      } else if (kind === 'polar') {
+        input = mathJSExpr.replace(/^r\s*=\s*/i, '')
+      } else if (kind === 'parametric') {
+        input = mathJSExpr
       } else if (kind === 'implicit') {
         input = toImplicitForm(mathJSExpr)
       } else if (kind === 'cartesian') {
         input = extractExplicitFunction(mathJSExpr)
       }
-
-      console.log('Input:', input, 'Point:', point)
       updateExpression(exprId, {
         latex,
         input,

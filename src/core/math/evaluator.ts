@@ -195,3 +195,59 @@ export function sampleImplicitFunction(
 
   return contours
 }
+
+/**
+ * Sample a parametric curve (x(t), y(t)) over a domain
+ * Input: two compiled expressions for x(t) and y(t)
+ */
+export function sampleParametric(
+  compiledX: any,
+  compiledY: any,
+  domain: [number, number] = [0, 2 * Math.PI],
+  numPoints: number = 1000
+): Array<{ x: number; y: number }> {
+  const [tMin, tMax] = domain
+  const dt = (tMax - tMin) / (numPoints - 1)
+  const points: Array<{ x: number; y: number }> = []
+
+  for (let i = 0; i < numPoints; i++) {
+    const t = tMin + i * dt
+    const x = evaluateExpression(compiledX, { t })
+    const y = evaluateExpression(compiledY, { t })
+    if (isFinite(x) && isFinite(y)) {
+      points.push({ x, y })
+    } else if (points.length > 0) {
+      points.push({ x: NaN, y: NaN })
+    }
+  }
+
+  return points
+}
+
+/**
+ * Sample a polar curve r(θ) over a domain
+ * Converts polar to Cartesian: x = r*cos(θ), y = r*sin(θ)
+ */
+export function samplePolar(
+  compiled: any,
+  domain: [number, number] = [0, 2 * Math.PI],
+  numPoints: number = 1000
+): Array<{ x: number; y: number }> {
+  const [thetaMin, thetaMax] = domain
+  const dTheta = (thetaMax - thetaMin) / (numPoints - 1)
+  const points: Array<{ x: number; y: number }> = []
+
+  for (let i = 0; i < numPoints; i++) {
+    const theta = thetaMin + i * dTheta
+    const r = evaluateExpression(compiled, { theta })
+    if (isFinite(r)) {
+      const x = r * Math.cos(theta)
+      const y = r * Math.sin(theta)
+      points.push({ x, y })
+    } else if (points.length > 0) {
+      points.push({ x: NaN, y: NaN })
+    }
+  }
+
+  return points
+}

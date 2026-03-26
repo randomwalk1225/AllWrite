@@ -182,12 +182,30 @@ export function validateLatex(latex: string): { valid: boolean; error?: string }
  * Detect if an expression is implicit (contains both x and y with =)
  * or explicit (y = f(x) or just f(x)) or a point (x,y)
  */
-export function detectExpressionKind(mathjs: string): 'implicit' | 'cartesian' | 'point' {
+export function detectExpressionKind(mathjs: string): 'implicit' | 'cartesian' | 'point' | 'parametric' | 'polar' {
   // Check if it's a point notation by trying to parse it
   const parsedPoint = parsePoint(mathjs)
   if (parsedPoint) {
     return 'point'
   }
+
+  // Check for polar: r = f(theta) or just contains theta without x/y
+  const polarMatch = mathjs.match(/^r\s*=\s*(.+)$/i)
+  if (polarMatch) {
+    return 'polar'
+  }
+  // Expression using theta but not x or y → treat as polar (r = expression)
+  if (/\btheta\b/.test(mathjs) && !/\bx\b/.test(mathjs) && !/\by\b/.test(mathjs) && !mathjs.includes('=')) {
+    return 'polar'
+  }
+
+  // Check for parametric: contains semicolon separating x(t) and y(t)
+  // Format: "sin(t); cos(t)" or "x=sin(t); y=cos(t)"
+  if (mathjs.includes(';') && /\bt\b/.test(mathjs)) {
+    return 'parametric'
+  }
+  // Expression using t but not x, y, theta → treat as parametric pair input needed
+  // Single expression with t only (like "sin(t)") stays cartesian - user needs ; separator
 
   // Check if expression contains '='
   if (!mathjs.includes('=')) {
