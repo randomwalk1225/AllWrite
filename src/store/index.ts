@@ -1597,16 +1597,18 @@ function saveHistoryImmediate(state: AppState) {
   // Remove any history after current index (when undoing and then making new changes)
   state.history = state.history.slice(0, state.historyIndex + 1)
 
-  // Create a lightweight snapshot - only current page data, skip pages array and images src
+  // Deep copy via JSON to safely clone Immer draft/Proxy objects
+  // Only clone current page data (not all pages' content) for memory efficiency
+  const clone = (obj: any) => JSON.parse(JSON.stringify(obj))
   const snapshot: HistoryState = {
-    expressions: structuredClone(state.expressions),
-    graphPoints: structuredClone(state.graphPoints),
-    images: state.images.map(img => ({ ...img, src: img.src })), // shallow copy, src is a string ref
-    drawings: state.drawings.map(d => ({ ...d, points: [...d.points] })),
-    textObjects: structuredClone(state.textObjects),
-    geometryObjects: structuredClone(state.geometryObjects),
-    view: { ...state.view },
-    pages: state.pages.map(p => ({ ...p, thumbnail: p.thumbnail })), // keep refs, don't deep clone page content
+    expressions: clone(state.expressions),
+    graphPoints: clone(state.graphPoints),
+    images: clone(state.images),
+    drawings: clone(state.drawings),
+    textObjects: clone(state.textObjects),
+    geometryObjects: clone(state.geometryObjects),
+    view: clone(state.view),
+    pages: state.pages.map(p => ({ id: p.id, name: p.name, thumbnail: p.thumbnail })) as any,
     currentPageIndex: state.currentPageIndex,
   }
 
