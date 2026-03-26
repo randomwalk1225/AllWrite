@@ -10,6 +10,8 @@ import { HexColorPicker } from 'react-colorful'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 import html2canvas from 'html2canvas'
+import { useIsMobile } from '../../hooks/useMediaQuery'
+import { MobileToolbar } from '../../ui/MobileToolbar'
 
 export function GraphCanvas() {
   const baseCanvasRef = useRef<HTMLCanvasElement>(null)
@@ -4016,7 +4018,8 @@ export function GraphCanvas() {
   }
 
   // Base button style (without positioning)
-  const isMobile = canvasSize.width < 768
+  const isMobileHook = useIsMobile()
+  const isMobile = isMobileHook || canvasSize.width < 480
   const btnSize = isMobile ? '44px' : '40px'
   const buttonStyle = {
     width: btnSize,
@@ -4117,7 +4120,11 @@ export function GraphCanvas() {
         )}
       </div>
 
-      {/* Top-right button group: Undo, Redo, Reset */}
+      {/* Mobile: bottom toolbar instead of desktop button groups */}
+      {isMobile && <MobileToolbar />}
+
+      {/* Top-right button group: Undo, Redo, Reset (desktop only) */}
+      {!isMobile && <>
       <div style={buttonGroupStyle({ top: isMobile ? '8px' : '16px', right: isMobile ? '8px' : '16px' })}>
         {/* Undo button */}
         <button
@@ -4271,8 +4278,10 @@ export function GraphCanvas() {
           </select>
         </div>
       )}
+      </>}
 
-      {/* Top-left button group: Drawing tools */}
+      {/* Top-left button group: Drawing tools (desktop only) */}
+      {!isMobile && <>
       <div style={buttonGroupStyle({ top: isMobile ? '8px' : '16px', left: isMobile ? '8px' : '16px' })}>
         {/* Pen tool group */}
         <div style={{ display: 'flex', position: 'relative' }}>
@@ -5075,8 +5084,10 @@ export function GraphCanvas() {
       </div>
 
       {/* Selection tool help panel - disabled */}
+      </>}
 
-      {/* Bottom-right button group: Zoom controls */}
+      {/* Bottom-right button group: Zoom controls (desktop only) */}
+      {!isMobile &&
       <div style={buttonGroupStyle({ bottom: '16px', right: '16px' })}>
         {/* Zoom in button */}
         <button
@@ -5119,7 +5130,7 @@ export function GraphCanvas() {
         >
           −
         </button>
-      </div>
+      </div>}
 
       {/* Point visibility mode dropdown - below home button - only show if there are points */}
       {geometryObjects.some(obj => obj.type === 'point') && (

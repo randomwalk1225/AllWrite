@@ -12,10 +12,14 @@ import { PanelTabs } from './ui/PanelTabs'
 import { PageList } from './components/PageList'
 import { BrushSettingsPanel } from './features/brush/BrushSettingsPanel'
 import { useStore } from './store'
+import { useIsMobile } from './hooks/useMediaQuery'
+import { MobileSheet } from './ui/MobileSheet'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 
 function App() {
+  const isMobile = useIsMobile()
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
   const sidebarRef = useRef<HTMLDivElement>(null)
   const splitPanelRef = useRef<SplitPanelHandle>(null)
   const graphContainerRef = useRef<HTMLDivElement>(null)
@@ -211,47 +215,73 @@ function App() {
     }
   }, [exportAllPagesToPDF])
 
+  const sidebarContent = (
+    <div className="sidebar" ref={sidebarRef}>
+      {!isMobile && <h2>AllWrite</h2>}
+      <PanelTabs />
+      {activePanelTab === 'expression' && (
+        <>
+          <ExpressionEditor />
+          {!isMobile && (
+            <div className="text-mode-hint">
+              <span className="hint-icon">💡</span>
+              <span className="hint-text">Ctrl+" 클릭하면 텍스트 입력 모드로 전환됩니다</span>
+            </div>
+          )}
+        </>
+      )}
+      {activePanelTab === 'geometry' && <GeometryToolPanel />}
+      {activePanelTab === 'page' && <PageList />}
+      {activePanelTab === 'brush' && <BrushSettingsPanel />}
+    </div>
+  )
+
   return (
     <div className="app">
-      <SplitPanel
-        ref={splitPanelRef}
-        left={
-          <div className="sidebar" ref={sidebarRef}>
-            <h2>AllWrite</h2>
-            <PanelTabs />
-            {activePanelTab === 'expression' && (
-              <>
-                <ExpressionEditor />
-                <div className="text-mode-hint">
-                  <span className="hint-icon">💡</span>
-                  <span className="hint-text">Ctrl+" 클릭하면 텍스트 입력 모드로 전환됩니다</span>
-                </div>
-              </>
-            )}
-            {activePanelTab === 'geometry' && <GeometryToolPanel />}
-            {activePanelTab === 'page' && <PageList />}
-            {activePanelTab === 'brush' && <BrushSettingsPanel />}
-          </div>
-        }
-        right={
-          <div className="canvas-container">
-            <button
-              ref={writingButtonRef}
-              className="writing-button canvas-writing-button"
-              onClick={handleOpenWriting}
-              title="모니터에 필기"
-            >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '18px' }}>
-                🖥️✍️
-              </span>
-            </button>
+      {isMobile ? (
+        <>
+          {/* Mobile: Full-screen canvas + FAB + Bottom Sheet */}
+          <div className="canvas-container" style={{ width: '100vw', height: '100vh' }}>
             <GraphCanvas splitPanelRef={splitPanelRef} />
           </div>
-        }
-        defaultLeftWidth={0}
-        minLeftWidth={0}
-        maxLeftWidth={1200}
-      />
+
+          {/* FAB to open sidebar sheet */}
+          <button
+            className={`mobile-fab ${mobileSheetOpen ? 'open' : ''}`}
+            onClick={() => setMobileSheetOpen(!mobileSheetOpen)}
+          >
+            {mobileSheetOpen ? '✕' : '📐'}
+          </button>
+
+          {/* Bottom Sheet with sidebar content */}
+          <MobileSheet open={mobileSheetOpen} onClose={() => setMobileSheetOpen(false)}>
+            {sidebarContent}
+          </MobileSheet>
+        </>
+      ) : (
+        <SplitPanel
+          ref={splitPanelRef}
+          left={sidebarContent}
+          right={
+            <div className="canvas-container">
+              <button
+                ref={writingButtonRef}
+                className="writing-button canvas-writing-button"
+                onClick={handleOpenWriting}
+                title="모니터에 필기"
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '18px' }}>
+                  🖥️✍️
+                </span>
+              </button>
+              <GraphCanvas splitPanelRef={splitPanelRef} />
+            </div>
+          }
+          defaultLeftWidth={0}
+          minLeftWidth={0}
+          maxLeftWidth={1200}
+        />
+      )}
       <RegularPolygonDialog />
       <DivisionPointDialog />
       <RegularPolygonEditDialog />

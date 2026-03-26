@@ -27,3 +27,13 @@
   color: #4ecdc4;
   border-bottom-color: #4ecdc4;
 }
+
+@media (max-width: 480px) {
+  .panel-tabs {
+    margin-bottom: 8px;
+  }
+  .panel-tab {
+    padding: 12px 8px;
+    font-size: 15px;
+  }
+}
