@@ -1,8 +1,69 @@
 import { app, BrowserWindow, Menu, ipcMain, desktopCapturer, screen, dialog, clipboard, nativeImage } from 'electron'
+import { autoUpdater } from 'electron-updater'
 import path from 'path'
 import fs from 'fs'
 
 const isDev = !app.isPackaged
+
+// Auto-updater configuration
+autoUpdater.autoDownload = true
+autoUpdater.autoInstallOnAppQuit = true
+
+function setupAutoUpdater() {
+  if (isDev) {
+    console.log('Skipping auto-update in development mode')
+    return
+  }
+
+  // Check for updates
+  autoUpdater.checkForUpdatesAndNotify()
+
+  // Update events
+  autoUpdater.on('checking-for-update', () => {
+    console.log('Checking for updates...')
+  })
+
+  autoUpdater.on('update-available', (info) => {
+    console.log('Update available:', info.version)
+    if (mainWindow) {
+      dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Update Available',
+        message: `A new version (${info.version}) is available.`,
+        detail: 'Downloading now...'
+      })
+    }
+  })
+
+  autoUpdater.on('update-not-available', () => {
+    console.log('No updates available')
+  })
+
+  autoUpdater.on('download-progress', (progress) => {
+    console.log(`Download progress: ${Math.round(progress.percent)}%`)
+  })
+
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log('Update downloaded:', info.version)
+    if (mainWindow) {
+      dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Update Ready',
+        message: `Version ${info.version} has been downloaded.`,
+        detail: 'The update will be installed when you restart the app.',
+        buttons: ['Restart Now', 'Later']
+      }).then((result) => {
+        if (result.response === 0) {
+          autoUpdater.quitAndInstall()
+        }
+      })
+    }
+  })
+
+  autoUpdater.on('error', (error) => {
+    console.error('Auto-update error:', error)
+  })
+}
 
 let mainWindow: BrowserWindow | null = null
 let writingWindow: BrowserWindow | null = null
@@ -360,6 +421,7 @@ ipcMain.handle('copy-image-to-clipboard', async (event, dataUrl: string) => {
 
 app.whenReady().then(() => {
   createWindow()
+  setupAutoUpdater()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
