@@ -4483,11 +4483,13 @@ export function GraphCanvas() {
           }}
           title="Select tool - Click: select object, Drag: free-form lasso select, Shift+Click: multi-select, Handles: resize/rotate, Delete: delete, Ctrl+[: send to back, Ctrl+]: bring to front"
         >
-          <img
-            src="/img/boundbox-다음에서-변환-png.svg"
-            alt="Select"
-            style={{ width: '22px', height: '22px' }}
-          />
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="3" width="18" height="18" rx="1" stroke="#555" strokeWidth="1.5" strokeDasharray="4 2" fill="none"/>
+            <rect x="1.5" y="1.5" width="4" height="4" rx="1" fill="#4ecdc4" stroke="#333" strokeWidth="0.8"/>
+            <rect x="18.5" y="1.5" width="4" height="4" rx="1" fill="#4ecdc4" stroke="#333" strokeWidth="0.8"/>
+            <rect x="1.5" y="18.5" width="4" height="4" rx="1" fill="#4ecdc4" stroke="#333" strokeWidth="0.8"/>
+            <rect x="18.5" y="18.5" width="4" height="4" rx="1" fill="#4ecdc4" stroke="#333" strokeWidth="0.8"/>
+          </svg>
         </button>
 
         {/* Copy & Paste button */}
@@ -4619,11 +4621,12 @@ export function GraphCanvas() {
             }}
             title="Eraser tool - Click and drag over objects to delete (hover shows preview)"
           >
-            <img
-              src="/img/eraser-다음에서-변환-png.svg"
-              alt="Eraser"
-              style={{ width: '30px', height: '30px' }}
-            />
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20 20H7L3 16C2.4 15.4 2.4 14.6 3 14L14 3C14.6 2.4 15.4 2.4 16 3L21 8C21.6 8.6 21.6 9.4 21 10L10 21" stroke="#555" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+              <path d="M3.5 14.5L9.5 20.5" stroke="#555" strokeWidth="1.5" strokeLinecap="round"/>
+              <rect x="3" y="14" width="7" height="7" rx="1" transform="rotate(-45 6.5 17.5)" fill="#FFB4B4" opacity="0.6"/>
+              <line x1="7" y1="21" x2="20" y2="21" stroke="#555" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
           </button>
 
           {/* Eraser thickness button */}
