@@ -5182,8 +5182,8 @@ export function GraphCanvas() {
         </button>
       </div>}
 
-      {/* Point visibility mode dropdown - below home button - only show if there are points */}
-      {geometryObjects.some(obj => obj.type === 'point') && (
+      {/* Point visibility mode dropdown - below home button - only show if there are points (desktop only) */}
+      {!isMobile && geometryObjects.some(obj => obj.type === 'point') && (
         <div style={{ ...buttonGroupStyle({ top: '60px', right: '16px' }) }}>
           <select
             value={pointVisibilityMode}
@@ -5204,8 +5204,8 @@ export function GraphCanvas() {
         </div>
       )}
 
-      {/* Shape render mode dropdown - below point visibility - only show if there are shapes */}
-      {geometryObjects.some(obj => obj.type === 'circle' || obj.type === 'polygon') && (
+      {/* Shape render mode dropdown - below point visibility - only show if there are shapes (desktop only) */}
+      {!isMobile && geometryObjects.some(obj => obj.type === 'circle' || obj.type === 'polygon') && (
         <div style={{ ...buttonGroupStyle({ top: geometryObjects.some(obj => obj.type === 'point') ? '110px' : '60px', right: '16px' }) }}>
           <select
             value={shapeRenderMode}

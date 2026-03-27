@@ -173,3 +173,8 @@
     padding: 4px;
   }
 }
+
+/* MathLive virtual keyboard should appear above mobile toolbar */
+.ML__keyboard {
+  z-index: 3000 !important;
+}

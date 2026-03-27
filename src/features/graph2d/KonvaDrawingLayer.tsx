@@ -694,14 +694,15 @@ const KonvaDrawingLayerComponent = (
     };
 
     const onTouchStart = (e: TouchEvent) => {
+      // Always preventDefault to let Konva handle touch (prevents browser scroll/zoom)
+      e.preventDefault();
       if (e.touches.length >= 2) {
-        e.preventDefault();
         pinchRef.current = { dist: getDist(e.touches), ...getCenter(e.touches) };
       }
     };
     const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault(); // Always prevent default for smooth Konva drag
       if (e.touches.length >= 2 && pinchRef.current) {
-        e.preventDefault();
         const newDist = getDist(e.touches);
         const center = getCenter(e.touches);
         // Pinch zoom

@@ -108,6 +108,7 @@ export const MathLiveEditor = forwardRef<MathLiveEditorRef, MathLiveEditorProps>
   return (
     <math-field
       ref={mathfieldRef}
+      math-virtual-keyboard-policy="auto"
       style={{
         width: '100%',
         fontSize: '18px',
