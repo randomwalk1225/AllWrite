@@ -2352,9 +2352,16 @@ const KonvaDrawingLayerComponent = (
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
       onTouchStart={(e) => {
-        // Two+ fingers = pinch/pan gesture, let it pass through to canvas below
         const nativeEvt = e.evt as TouchEvent;
-        if (nativeEvt.touches && nativeEvt.touches.length >= 2) return;
+        if (nativeEvt.touches && nativeEvt.touches.length >= 2) {
+          // Second finger added — cancel any in-progress drawing
+          if (isDrawing) {
+            setIsDrawing(false);
+            currentStrokePoints.current = [];
+            setTempStrokeData(null);
+          }
+          return;
+        }
         handleMouseDown(e);
       }}
       onTouchMove={(e) => {
@@ -2364,7 +2371,6 @@ const KonvaDrawingLayerComponent = (
       }}
       onTouchEnd={(e) => {
         const nativeEvt = e.evt as TouchEvent;
-        // If there are still 2+ touches remaining, this is a pinch gesture ending one finger
         if (nativeEvt.touches && nativeEvt.touches.length >= 1) return;
         handleMouseUp(e);
       }}
