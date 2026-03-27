@@ -709,9 +709,10 @@ const KonvaDrawingLayerComponent = (
         // Pinch zoom
         const factor = newDist / pinchRef.current.dist;
         useStore.getState().zoom(factor, center.x, center.y);
-        // Pan
-        const dx = (center.x - pinchRef.current.cx) / view.scale;
-        const dy = (center.y - pinchRef.current.cy) / view.scale;
+        // Pan - use getState() to avoid stale closure
+        const currentScale = useStore.getState().view.scale;
+        const dx = (center.x - pinchRef.current.cx) / currentScale;
+        const dy = (center.y - pinchRef.current.cy) / currentScale;
         useStore.getState().pan(-dx, dy);
         pinchRef.current = { dist: newDist, cx: center.x, cy: center.y };
       }
@@ -730,7 +731,7 @@ const KonvaDrawingLayerComponent = (
       container.removeEventListener('touchmove', onTouchMove, true);
       container.removeEventListener('touchend', onTouchEnd, true);
     };
-  }, [stageRef, view.scale]);
+  }, [stageRef]);
   const [rasterCanvasVersion, setRasterCanvasVersion] = useState(0);
   const [isErasingRaster, setIsErasingRaster] = useState(false);
   const [eraserCursorPos, setEraserCursorPos] = useState<{
