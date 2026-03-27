@@ -696,14 +696,12 @@ const KonvaDrawingLayerComponent = (
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length >= 2) {
         e.preventDefault();
-        e.stopPropagation();
         pinchRef.current = { dist: getDist(e.touches), ...getCenter(e.touches) };
       }
     };
     const onTouchMove = (e: TouchEvent) => {
       if (e.touches.length >= 2 && pinchRef.current) {
         e.preventDefault();
-        e.stopPropagation();
         const newDist = getDist(e.touches);
         const center = getCenter(e.touches);
         // Pinch zoom
@@ -723,13 +721,13 @@ const KonvaDrawingLayerComponent = (
       }
     };
 
-    container.addEventListener('touchstart', onTouchStart, { passive: false, capture: true });
-    container.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });
-    container.addEventListener('touchend', onTouchEnd, { capture: true });
+    container.addEventListener('touchstart', onTouchStart, { passive: false });
+    container.addEventListener('touchmove', onTouchMove, { passive: false });
+    container.addEventListener('touchend', onTouchEnd);
     return () => {
-      container.removeEventListener('touchstart', onTouchStart, true);
-      container.removeEventListener('touchmove', onTouchMove, true);
-      container.removeEventListener('touchend', onTouchEnd, true);
+      container.removeEventListener('touchstart', onTouchStart);
+      container.removeEventListener('touchmove', onTouchMove);
+      container.removeEventListener('touchend', onTouchEnd);
     };
   }, [stageRef]);
   const [rasterCanvasVersion, setRasterCanvasVersion] = useState(0);
@@ -2359,6 +2357,16 @@ const KonvaDrawingLayerComponent = (
             setIsDrawing(false);
             currentStrokePoints.current = [];
             setTempStrokeData(null);
+            if (tempStrokeRef.current) {
+              tempStrokeRef.current.points([]);
+              tempStrokeRef.current.getLayer()?.batchDraw();
+            }
+            // Cancel pending RAF
+            if (drawingRenderFrameRef.current !== null) {
+              cancelAnimationFrame(drawingRenderFrameRef.current);
+              drawingRenderFrameRef.current = null;
+              pendingDrawingUpdateRef.current = false;
+            }
           }
           return;
         }
