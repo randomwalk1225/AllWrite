@@ -4091,6 +4091,55 @@ export function GraphCanvas() {
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
+          onTouchStart={(e) => {
+            if (e.touches.length === 1) {
+              // Single touch: simulate mouse event for geometry creation, text, pan
+              const touch = e.touches[0];
+              const rect = (e.target as HTMLCanvasElement).getBoundingClientRect();
+              const syntheticEvent = {
+                clientX: touch.clientX,
+                clientY: touch.clientY,
+                target: e.target,
+                preventDefault: () => e.preventDefault(),
+                stopPropagation: () => e.stopPropagation(),
+                currentTarget: e.currentTarget,
+                nativeEvent: e.nativeEvent,
+                button: 0,
+              } as unknown as React.MouseEvent<HTMLCanvasElement>;
+              handleMouseDown(syntheticEvent);
+            }
+          }}
+          onTouchMove={(e) => {
+            if (e.touches.length === 1) {
+              const touch = e.touches[0];
+              const syntheticEvent = {
+                clientX: touch.clientX,
+                clientY: touch.clientY,
+                target: e.target,
+                preventDefault: () => e.preventDefault(),
+                stopPropagation: () => e.stopPropagation(),
+                currentTarget: e.currentTarget,
+                nativeEvent: e.nativeEvent,
+                buttons: 1,
+              } as unknown as React.MouseEvent<HTMLCanvasElement>;
+              handleMouseMove(syntheticEvent);
+            }
+          }}
+          onTouchEnd={(e) => {
+            if (e.changedTouches.length > 0) {
+              const touch = e.changedTouches[0];
+              const syntheticEvent = {
+                clientX: touch.clientX,
+                clientY: touch.clientY,
+                target: e.target,
+                preventDefault: () => e.preventDefault(),
+                stopPropagation: () => e.stopPropagation(),
+                currentTarget: e.currentTarget,
+                nativeEvent: e.nativeEvent,
+              } as unknown as React.MouseEvent<HTMLCanvasElement>;
+              handleMouseUp(syntheticEvent);
+            }
+          }}
           style={{
             position: 'absolute',
             top: 0,
@@ -4098,6 +4147,7 @@ export function GraphCanvas() {
             width: '100%',
             height: '100%',
             zIndex: 2,
+            touchAction: 'none',
             cursor: isPanning ? 'grabbing'
               : drawingTool === 'eraser' ? 'not-allowed'
               : drawingTool === 'pen' || drawingTool === 'highlighter' ? 'default'
@@ -5506,14 +5556,18 @@ export function GraphCanvas() {
       })}
       {/* Text input field */}
       {textInputVisible && (() => {
+        // On mobile, ensure text input doesn't get hidden behind bottom toolbar
+        const toolbarHeight = isMobile ? 56 + 20 : 0 // toolbar + padding
+        const maxY = canvasSize.height - toolbarHeight - 120 // leave room for input + controls
+        const adjustedY = Math.min(textInputPosition.y, maxY)
         return (
           <div
             ref={editingContainerRef}
             style={{
               position: 'absolute',
-              left: `${textInputPosition.x}px`,
-              top: `${textInputPosition.y}px`,
-              zIndex: 1000,
+              left: `${Math.min(textInputPosition.x, canvasSize.width - 220)}px`,
+              top: `${adjustedY}px`,
+              zIndex: 2500, // Above mobile toolbar (2000)
               display: 'flex',
               flexDirection: 'column',
               gap: '4px',

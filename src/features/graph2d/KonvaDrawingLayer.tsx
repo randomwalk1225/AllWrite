@@ -673,6 +673,64 @@ const KonvaDrawingLayerComponent = (
   const [erasingImageId, setErasingImageId] = useState<string | null>(null);
   const eraserPathRef = useRef<Array<{ x: number; y: number }>>([]);
   const globalRasterCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Two-finger pinch/pan on the Konva Stage (highest z-index, so must handle here)
+  const pinchRef = useRef<{ dist: number; cx: number; cy: number } | null>(null);
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const container = stage.container();
+    if (!container) return;
+
+    const getDist = (t: TouchList) => Math.sqrt(
+      (t[0].clientX - t[1].clientX) ** 2 + (t[0].clientY - t[1].clientY) ** 2
+    );
+    const getCenter = (t: TouchList) => {
+      const rect = container.getBoundingClientRect();
+      return {
+        x: (t[0].clientX + t[1].clientX) / 2 - rect.left,
+        y: (t[0].clientY + t[1].clientY) / 2 - rect.top,
+      };
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length >= 2) {
+        e.preventDefault();
+        e.stopPropagation();
+        pinchRef.current = { dist: getDist(e.touches), ...getCenter(e.touches) };
+      }
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length >= 2 && pinchRef.current) {
+        e.preventDefault();
+        e.stopPropagation();
+        const newDist = getDist(e.touches);
+        const center = getCenter(e.touches);
+        // Pinch zoom
+        const factor = newDist / pinchRef.current.dist;
+        useStore.getState().zoom(factor, center.x, center.y);
+        // Pan
+        const dx = (center.x - pinchRef.current.cx) / view.scale;
+        const dy = (center.y - pinchRef.current.cy) / view.scale;
+        useStore.getState().pan(-dx, dy);
+        pinchRef.current = { dist: newDist, cx: center.x, cy: center.y };
+      }
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        pinchRef.current = null;
+      }
+    };
+
+    container.addEventListener('touchstart', onTouchStart, { passive: false, capture: true });
+    container.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });
+    container.addEventListener('touchend', onTouchEnd, { capture: true });
+    return () => {
+      container.removeEventListener('touchstart', onTouchStart, true);
+      container.removeEventListener('touchmove', onTouchMove, true);
+      container.removeEventListener('touchend', onTouchEnd, true);
+    };
+  }, [stageRef, view.scale]);
   const [rasterCanvasVersion, setRasterCanvasVersion] = useState(0);
   const [isErasingRaster, setIsErasingRaster] = useState(false);
   const [eraserCursorPos, setEraserCursorPos] = useState<{
@@ -2292,9 +2350,23 @@ const KonvaDrawingLayerComponent = (
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
-      onTouchStart={handleMouseDown}
-      onTouchMove={handleMouseMove}
-      onTouchEnd={handleMouseUp}
+      onTouchStart={(e) => {
+        // Two+ fingers = pinch/pan gesture, let it pass through to canvas below
+        const nativeEvt = e.evt as TouchEvent;
+        if (nativeEvt.touches && nativeEvt.touches.length >= 2) return;
+        handleMouseDown(e);
+      }}
+      onTouchMove={(e) => {
+        const nativeEvt = e.evt as TouchEvent;
+        if (nativeEvt.touches && nativeEvt.touches.length >= 2) return;
+        handleMouseMove(e);
+      }}
+      onTouchEnd={(e) => {
+        const nativeEvt = e.evt as TouchEvent;
+        // If there are still 2+ touches remaining, this is a pinch gesture ending one finger
+        if (nativeEvt.touches && nativeEvt.touches.length >= 1) return;
+        handleMouseUp(e);
+      }}
     >
       <Layer ref={layerRef}>
         {/* Render all images first (so they appear behind everything) */}
