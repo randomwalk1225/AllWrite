@@ -676,6 +676,7 @@ const KonvaDrawingLayerComponent = (
 
   // Two-finger pinch/pan on the Konva Stage (highest z-index, so must handle here)
   const pinchRef = useRef<{ dist: number; cx: number; cy: number } | null>(null);
+  const pinchActiveRef = useRef(false); // True from second finger down until all fingers lifted
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage) return;
@@ -694,15 +695,15 @@ const KonvaDrawingLayerComponent = (
     };
 
     const onTouchStart = (e: TouchEvent) => {
-      // Always preventDefault to let Konva handle touch (prevents browser scroll/zoom)
-      e.preventDefault();
       if (e.touches.length >= 2) {
+        e.preventDefault();
         pinchRef.current = { dist: getDist(e.touches), ...getCenter(e.touches) };
       }
+      // Don't preventDefault for single finger — let Konva process it normally
     };
     const onTouchMove = (e: TouchEvent) => {
-      e.preventDefault(); // Always prevent default for smooth Konva drag
       if (e.touches.length >= 2 && pinchRef.current) {
+        e.preventDefault();
         const newDist = getDist(e.touches);
         const center = getCenter(e.touches);
         // Pinch zoom
@@ -2371,28 +2372,33 @@ const KonvaDrawingLayerComponent = (
           // Cancel any Konva drag in progress — prevents objects flying to top-left
           const stage = stageRef.current;
           if (stage) {
-            const draggingNode = stage.findOne((node: any) => node.isDragging());
-            if (draggingNode) {
-              draggingNode.stopDrag();
-            }
+            // Stop all active drags
+            stage.find('Group, Circle, Line, Rect, Image').forEach((node: any) => {
+              if (node.isDragging && node.isDragging()) {
+                node.stopDrag();
+              }
+            });
           }
+          // Mark that we're in a pinch gesture so subsequent events are ignored
+          pinchActiveRef.current = true;
           return;
         }
+        // Skip if pinch just ended — wait for a clean new touch
+        if (pinchActiveRef.current) return;
         handleMouseDown(e);
       }}
       onTouchMove={(e) => {
         const nativeEvt = e.evt as TouchEvent;
         if (nativeEvt.touches && nativeEvt.touches.length >= 2) return;
-        // Also skip if pinch was active (finger count just dropped from 2 to 1)
-        if (pinchRef.current) return;
+        if (pinchActiveRef.current) return;
         handleMouseMove(e);
       }}
       onTouchEnd={(e) => {
         const nativeEvt = e.evt as TouchEvent;
-        // Skip if other fingers still touching or pinch just ended
         if (nativeEvt.touches && nativeEvt.touches.length >= 1) return;
-        if (pinchRef.current) {
-          pinchRef.current = null;
+        // If pinch was active, just reset the flag and skip handleMouseUp
+        if (pinchActiveRef.current) {
+          pinchActiveRef.current = false;
           return;
         }
         handleMouseUp(e);
