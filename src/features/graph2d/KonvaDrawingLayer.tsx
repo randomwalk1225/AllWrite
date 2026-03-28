@@ -790,10 +790,12 @@ const KonvaDrawingLayerComponent = (
 
   // Note: rasterizeDrawings() removed - we now draw directly to canvas in Krita style
 
-  // Canvas constants
-  const CANVAS_SIZE = 10000;
-  const CANVAS_CENTER = 5000;
-  const PIXELS_PER_UNIT = 100;
+  // Canvas constants — mobile uses smaller canvas (64MB vs 400MB)
+  // PIXELS_PER_UNIT stays 100 for consistent raster↔vector positioning
+  const isMobileCanvas = width < 768 || ('ontouchstart' in window);
+  const CANVAS_SIZE = isMobileCanvas ? 4000 : 10000;
+  const CANVAS_CENTER = CANVAS_SIZE / 2;
+  const PIXELS_PER_UNIT = 100; // Must stay 100 to match graphToScreen()
 
   // Graph coordinate to canvas pixel coordinate
   const graphToCanvasPixel = useCallback(

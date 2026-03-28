@@ -1597,17 +1597,22 @@ function saveHistoryImmediate(state: AppState) {
   // Remove any history after current index (when undoing and then making new changes)
   state.history = state.history.slice(0, state.historyIndex + 1)
 
-  // Deep copy via JSON to safely clone Immer draft/Proxy objects
-  // Only clone current page data (not all pages' content) for memory efficiency
-  const clone = (obj: any) => JSON.parse(JSON.stringify(obj))
+  // Lightweight snapshot: shallow clone arrays, deep clone only small objects
   const snapshot: HistoryState = {
-    expressions: clone(state.expressions),
-    graphPoints: clone(state.graphPoints),
-    images: clone(state.images),
-    drawings: clone(state.drawings),
-    textObjects: clone(state.textObjects),
-    geometryObjects: clone(state.geometryObjects),
-    view: clone(state.view),
+    expressions: JSON.parse(JSON.stringify(state.expressions)),
+    graphPoints: JSON.parse(JSON.stringify(state.graphPoints)),
+    images: state.images.map(img => ({
+      ...JSON.parse(JSON.stringify({ id: img.id, opacity: img.opacity, locked: img.locked, aspectRatio: img.aspectRatio, rotation: img.rotation, selected: img.selected, graphPosition: img.graphPosition })),
+      src: img.src, // string ref, no need to deep clone
+      transform: img.transform,
+    })),
+    drawings: state.drawings.map(d => ({
+      id: d.id, color: d.color, width: d.width, tool: d.tool, selected: d.selected,
+      points: d.points, // reference only — points don't mutate after creation
+    })),
+    textObjects: JSON.parse(JSON.stringify(state.textObjects)),
+    geometryObjects: JSON.parse(JSON.stringify(state.geometryObjects)),
+    view: { ...state.view, center: { ...state.view.center } },
     pages: state.pages.map(p => ({ id: p.id, name: p.name, thumbnail: p.thumbnail })) as any,
     currentPageIndex: state.currentPageIndex,
   }
@@ -1616,8 +1621,8 @@ function saveHistoryImmediate(state: AppState) {
   state.history.push(snapshot)
   state.historyIndex = state.history.length - 1
 
-  // Limit history to 30 steps to reduce memory usage
-  const MAX_HISTORY = 30
+  // Limit history — fewer on mobile to save memory
+  const MAX_HISTORY = 15
   if (state.history.length > MAX_HISTORY) {
     state.history.shift()
     state.historyIndex--
