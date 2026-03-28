@@ -2362,11 +2362,18 @@ const KonvaDrawingLayerComponent = (
               tempStrokeRef.current.points([]);
               tempStrokeRef.current.getLayer()?.batchDraw();
             }
-            // Cancel pending RAF
             if (drawingRenderFrameRef.current !== null) {
               cancelAnimationFrame(drawingRenderFrameRef.current);
               drawingRenderFrameRef.current = null;
               pendingDrawingUpdateRef.current = false;
+            }
+          }
+          // Cancel any Konva drag in progress — prevents objects flying to top-left
+          const stage = stageRef.current;
+          if (stage) {
+            const draggingNode = stage.findOne((node: any) => node.isDragging());
+            if (draggingNode) {
+              draggingNode.stopDrag();
             }
           }
           return;
@@ -2376,11 +2383,18 @@ const KonvaDrawingLayerComponent = (
       onTouchMove={(e) => {
         const nativeEvt = e.evt as TouchEvent;
         if (nativeEvt.touches && nativeEvt.touches.length >= 2) return;
+        // Also skip if pinch was active (finger count just dropped from 2 to 1)
+        if (pinchRef.current) return;
         handleMouseMove(e);
       }}
       onTouchEnd={(e) => {
         const nativeEvt = e.evt as TouchEvent;
+        // Skip if other fingers still touching or pinch just ended
         if (nativeEvt.touches && nativeEvt.touches.length >= 1) return;
+        if (pinchRef.current) {
+          pinchRef.current = null;
+          return;
+        }
         handleMouseUp(e);
       }}
     >
