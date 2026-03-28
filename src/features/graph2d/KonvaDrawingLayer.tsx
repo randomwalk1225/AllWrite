@@ -698,23 +698,31 @@ const KonvaDrawingLayerComponent = (
       if (e.touches.length >= 2) {
         e.preventDefault();
         pinchRef.current = { dist: getDist(e.touches), ...getCenter(e.touches) };
+        pinchActiveRef.current = true;
+
+        // Fire a synthetic mouseup on the Konva Stage canvas to cleanly end
+        // any in-progress drawing/drag. This avoids stopDrag() which corrupts state.
+        const stageCanvas = container.querySelector('canvas');
+        if (stageCanvas) {
+          stageCanvas.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        }
       }
-      // Don't preventDefault for single finger — let Konva process it normally
     };
     const onTouchMove = (e: TouchEvent) => {
       if (e.touches.length >= 2 && pinchRef.current) {
         e.preventDefault();
         const newDist = getDist(e.touches);
         const center = getCenter(e.touches);
-        // Pinch zoom
         const factor = newDist / pinchRef.current.dist;
         useStore.getState().zoom(factor, center.x, center.y);
-        // Pan - use getState() to avoid stale closure
         const currentScale = useStore.getState().view.scale;
         const dx = (center.x - pinchRef.current.cx) / currentScale;
         const dy = (center.y - pinchRef.current.cy) / currentScale;
         useStore.getState().pan(-dx, dy);
         pinchRef.current = { dist: newDist, cx: center.x, cy: center.y };
+      } else if (pinchActiveRef.current) {
+        // Still in pinch mode with only 1 finger remaining — block Konva
+        e.preventDefault();
       }
     };
     const onTouchEnd = (e: TouchEvent) => {
@@ -722,7 +730,6 @@ const KonvaDrawingLayerComponent = (
         pinchRef.current = null;
       }
       if (e.touches.length === 0) {
-        // All fingers lifted — ensure pinch state is fully reset
         pinchActiveRef.current = false;
       }
     };
@@ -2351,68 +2358,10 @@ const KonvaDrawingLayerComponent = (
           : "grab",
       }}
       onClick={handleStageClick}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
+      onMouseDown={(e) => { if (!pinchActiveRef.current) handleMouseDown(e); }}
+      onMouseMove={(e) => { if (!pinchActiveRef.current) handleMouseMove(e); }}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
-      onTouchStart={(e) => {
-        const nativeEvt = e.evt as TouchEvent;
-        if (nativeEvt.touches && nativeEvt.touches.length >= 2) {
-          // Second finger added — cancel any in-progress drawing
-          if (isDrawing) {
-            setIsDrawing(false);
-            currentStrokePoints.current = [];
-            setTempStrokeData(null);
-            if (tempStrokeRef.current) {
-              tempStrokeRef.current.points([]);
-              tempStrokeRef.current.getLayer()?.batchDraw();
-            }
-            if (drawingRenderFrameRef.current !== null) {
-              cancelAnimationFrame(drawingRenderFrameRef.current);
-              drawingRenderFrameRef.current = null;
-              pendingDrawingUpdateRef.current = false;
-            }
-          }
-          // Cancel any Konva drag in progress — prevents objects flying to top-left
-          const stage = stageRef.current;
-          if (stage) {
-            // Stop all active drags
-            stage.find('Group, Circle, Line, Rect, Image').forEach((node: any) => {
-              if (node.isDragging && node.isDragging()) {
-                node.stopDrag();
-              }
-            });
-          }
-          // Mark that we're in a pinch gesture so subsequent events are ignored
-          pinchActiveRef.current = true;
-          return;
-        }
-        // Skip if pinch just ended — wait for a clean new touch
-        if (pinchActiveRef.current) return;
-        handleMouseDown(e);
-      }}
-      onTouchMove={(e) => {
-        const nativeEvt = e.evt as TouchEvent;
-        if (nativeEvt.touches && nativeEvt.touches.length >= 2) return;
-        if (pinchActiveRef.current) return;
-        handleMouseMove(e);
-      }}
-      onTouchEnd={(e) => {
-        const nativeEvt = e.evt as TouchEvent;
-        const remainingTouches = nativeEvt.touches ? nativeEvt.touches.length : 0;
-
-        // If pinch was active, reset when all fingers are lifted
-        if (pinchActiveRef.current) {
-          if (remainingTouches === 0) {
-            pinchActiveRef.current = false;
-          }
-          return; // Always skip handleMouseUp during/after pinch
-        }
-
-        // Normal single-finger end
-        if (remainingTouches >= 1) return;
-        handleMouseUp(e);
-      }}
     >
       <Layer ref={layerRef}>
         {/* Render all images first (so they appear behind everything) */}
