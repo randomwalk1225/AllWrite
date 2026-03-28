@@ -4093,14 +4093,13 @@ export function GraphCanvas() {
           onMouseUp={handleMouseUp}
           onTouchStart={(e) => {
             if (e.touches.length === 1) {
-              // Single touch: simulate mouse event for geometry creation, text, pan
+              e.preventDefault(); // Prevent browser touch→mouse conversion (double fire)
               const touch = e.touches[0];
-              const rect = (e.target as HTMLCanvasElement).getBoundingClientRect();
               const syntheticEvent = {
                 clientX: touch.clientX,
                 clientY: touch.clientY,
                 target: e.target,
-                preventDefault: () => e.preventDefault(),
+                preventDefault: () => {},
                 stopPropagation: () => e.stopPropagation(),
                 currentTarget: e.currentTarget,
                 nativeEvent: e.nativeEvent,
@@ -4127,12 +4126,13 @@ export function GraphCanvas() {
           }}
           onTouchEnd={(e) => {
             if (e.changedTouches.length > 0) {
+              e.preventDefault(); // Prevent browser touch→mouse conversion
               const touch = e.changedTouches[0];
               const syntheticEvent = {
                 clientX: touch.clientX,
                 clientY: touch.clientY,
                 target: e.target,
-                preventDefault: () => e.preventDefault(),
+                preventDefault: () => {},
                 stopPropagation: () => e.stopPropagation(),
                 currentTarget: e.currentTarget,
                 nativeEvent: e.nativeEvent,
