@@ -2338,9 +2338,19 @@ const KonvaDrawingLayerComponent = (
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
-      /* Touch: Let Konva convert touch→mouse internally.
-         Two-finger pinch/pan handled by container DOM listener above.
-         No explicit onTouchStart/Move/End needed. */
+      onTouchStart={(e) => {
+        const t = e.evt.touches;
+        if (t && t.length >= 2) return; // let container handle pinch
+        handleMouseDown(e as any);
+      }}
+      onTouchMove={(e) => {
+        const t = e.evt.touches;
+        if (t && t.length >= 2) return;
+        handleMouseMove(e as any);
+      }}
+      onTouchEnd={(e) => {
+        handleMouseUp(e as any);
+      }}
     >
       <Layer ref={layerRef}>
         {/* Render all images first (so they appear behind everything) */}
