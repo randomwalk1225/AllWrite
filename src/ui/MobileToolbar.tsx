@@ -149,22 +149,22 @@ export function MobileToolbar() {
         <>
           <div className="mobile-tray-backdrop" onClick={() => setShowTray(false)} />
           <div className="mobile-tray">
-            <button className="mobile-tray-btn" onClick={() => { undo(); setShowTray(false) }} disabled={!canUndo()}>
+            <button className="mobile-tray-btn" onClick={() => undo()} disabled={!canUndo()}>
               <span>↶</span><span className="mobile-tray-label">실행취소</span>
             </button>
-            <button className="mobile-tray-btn" onClick={() => { redo(); setShowTray(false) }} disabled={!canRedo()}>
+            <button className="mobile-tray-btn" onClick={() => redo()} disabled={!canRedo()}>
               <span>↷</span><span className="mobile-tray-label">다시실행</span>
             </button>
-            <button className="mobile-tray-btn" onClick={() => { resetView(); setShowTray(false) }}>
+            <button className="mobile-tray-btn" onClick={() => resetView()}>
               <span>🏠</span><span className="mobile-tray-label">초기화</span>
             </button>
             <button className="mobile-tray-btn" onClick={() => { clearDrawings(); setShowTray(false) }}>
               <span>🗑️</span><span className="mobile-tray-label">그림삭제</span>
             </button>
-            <button className="mobile-tray-btn" onClick={() => { useStore.getState().zoom(1.3); setShowTray(false) }}>
+            <button className="mobile-tray-btn" onClick={() => useStore.getState().zoom(1.3)}>
               <span>🔍+</span><span className="mobile-tray-label">확대</span>
             </button>
-            <button className="mobile-tray-btn" onClick={() => { useStore.getState().zoom(0.7); setShowTray(false) }}>
+            <button className="mobile-tray-btn" onClick={() => useStore.getState().zoom(0.7)}>
               <span>🔍−</span><span className="mobile-tray-label">축소</span>
             </button>
             <button className="mobile-tray-btn" onClick={() => { clearAll(); setShowTray(false) }}>
