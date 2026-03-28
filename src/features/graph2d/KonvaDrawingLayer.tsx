@@ -674,75 +674,9 @@ const KonvaDrawingLayerComponent = (
   const eraserPathRef = useRef<Array<{ x: number; y: number }>>([]);
   const globalRasterCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Two-finger pinch/pan on the Konva Stage (highest z-index, so must handle here)
+  // Two-finger pinch/pan state — handled inside Konva's own touch handlers
   const pinchRef = useRef<{ dist: number; cx: number; cy: number } | null>(null);
-  const pinchActiveRef = useRef(false); // True from second finger down until all fingers lifted
-  useEffect(() => {
-    const stage = stageRef.current;
-    if (!stage) return;
-    const container = stage.container();
-    if (!container) return;
-
-    const getDist = (t: TouchList) => Math.sqrt(
-      (t[0].clientX - t[1].clientX) ** 2 + (t[0].clientY - t[1].clientY) ** 2
-    );
-    const getCenter = (t: TouchList) => {
-      const rect = container.getBoundingClientRect();
-      return {
-        x: (t[0].clientX + t[1].clientX) / 2 - rect.left,
-        y: (t[0].clientY + t[1].clientY) / 2 - rect.top,
-      };
-    };
-
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length >= 2) {
-        e.preventDefault();
-        pinchRef.current = { dist: getDist(e.touches), ...getCenter(e.touches) };
-        pinchActiveRef.current = true;
-
-        // Fire a synthetic mouseup on the Konva Stage canvas to cleanly end
-        // any in-progress drawing/drag. This avoids stopDrag() which corrupts state.
-        const stageCanvas = container.querySelector('canvas');
-        if (stageCanvas) {
-          stageCanvas.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-        }
-      }
-    };
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length >= 2 && pinchRef.current) {
-        e.preventDefault();
-        const newDist = getDist(e.touches);
-        const center = getCenter(e.touches);
-        const factor = newDist / pinchRef.current.dist;
-        useStore.getState().zoom(factor, center.x, center.y);
-        const currentScale = useStore.getState().view.scale;
-        const dx = (center.x - pinchRef.current.cx) / currentScale;
-        const dy = (center.y - pinchRef.current.cy) / currentScale;
-        useStore.getState().pan(-dx, dy);
-        pinchRef.current = { dist: newDist, cx: center.x, cy: center.y };
-      } else if (pinchActiveRef.current) {
-        // Still in pinch mode with only 1 finger remaining — block Konva
-        e.preventDefault();
-      }
-    };
-    const onTouchEnd = (e: TouchEvent) => {
-      if (e.touches.length < 2) {
-        pinchRef.current = null;
-      }
-      if (e.touches.length === 0) {
-        pinchActiveRef.current = false;
-      }
-    };
-
-    container.addEventListener('touchstart', onTouchStart, { passive: false });
-    container.addEventListener('touchmove', onTouchMove, { passive: false });
-    container.addEventListener('touchend', onTouchEnd);
-    return () => {
-      container.removeEventListener('touchstart', onTouchStart);
-      container.removeEventListener('touchmove', onTouchMove);
-      container.removeEventListener('touchend', onTouchEnd);
-    };
-  }, [stageRef]);
+  const pinchActiveRef = useRef(false);
   const [rasterCanvasVersion, setRasterCanvasVersion] = useState(0);
   const [isErasingRaster, setIsErasingRaster] = useState(false);
   const [eraserCursorPos, setEraserCursorPos] = useState<{
@@ -2358,10 +2292,77 @@ const KonvaDrawingLayerComponent = (
           : "grab",
       }}
       onClick={handleStageClick}
-      onMouseDown={(e) => { if (!pinchActiveRef.current) handleMouseDown(e); }}
-      onMouseMove={(e) => { if (!pinchActiveRef.current) handleMouseMove(e); }}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
+      onTouchStart={(e) => {
+        const evt = e.evt;
+        if (evt.touches.length >= 2) {
+          // Start pinch — cancel current drawing cleanly
+          if (isDrawing) {
+            setIsDrawing(false);
+            currentStrokePoints.current = [];
+            setTempStrokeData(null);
+          }
+          const rect = stageRef.current?.container()?.getBoundingClientRect();
+          if (rect) {
+            const dist = Math.sqrt(
+              (evt.touches[0].clientX - evt.touches[1].clientX) ** 2 +
+              (evt.touches[0].clientY - evt.touches[1].clientY) ** 2
+            );
+            pinchRef.current = {
+              dist,
+              cx: (evt.touches[0].clientX + evt.touches[1].clientX) / 2 - rect.left,
+              cy: (evt.touches[0].clientY + evt.touches[1].clientY) / 2 - rect.top,
+            };
+          }
+          pinchActiveRef.current = true;
+          return;
+        }
+        if (pinchActiveRef.current) return;
+        handleMouseDown(e);
+      }}
+      onTouchMove={(e) => {
+        const evt = e.evt;
+        if (evt.touches.length >= 2 && pinchRef.current) {
+          evt.preventDefault();
+          const rect = stageRef.current?.container()?.getBoundingClientRect();
+          if (!rect) return;
+          const newDist = Math.sqrt(
+            (evt.touches[0].clientX - evt.touches[1].clientX) ** 2 +
+            (evt.touches[0].clientY - evt.touches[1].clientY) ** 2
+          );
+          const cx = (evt.touches[0].clientX + evt.touches[1].clientX) / 2 - rect.left;
+          const cy = (evt.touches[0].clientY + evt.touches[1].clientY) / 2 - rect.top;
+          // Zoom
+          const factor = newDist / pinchRef.current.dist;
+          useStore.getState().zoom(factor, cx, cy);
+          // Pan
+          const scale = useStore.getState().view.scale;
+          useStore.getState().pan(
+            -(cx - pinchRef.current.cx) / scale,
+            (cy - pinchRef.current.cy) / scale
+          );
+          pinchRef.current = { dist: newDist, cx, cy };
+          return;
+        }
+        if (pinchActiveRef.current) return;
+        handleMouseMove(e);
+      }}
+      onTouchEnd={(e) => {
+        const evt = e.evt;
+        if (pinchActiveRef.current) {
+          if (evt.touches.length === 0) {
+            pinchActiveRef.current = false;
+            pinchRef.current = null;
+          }
+          return;
+        }
+        if (evt.touches.length === 0) {
+          handleMouseUp(e);
+        }
+      }}
     >
       <Layer ref={layerRef}>
         {/* Render all images first (so they appear behind everything) */}
