@@ -721,6 +721,10 @@ const KonvaDrawingLayerComponent = (
       if (e.touches.length < 2) {
         pinchRef.current = null;
       }
+      if (e.touches.length === 0) {
+        // All fingers lifted — ensure pinch state is fully reset
+        pinchActiveRef.current = false;
+      }
     };
 
     container.addEventListener('touchstart', onTouchStart, { passive: false });
@@ -2395,12 +2399,18 @@ const KonvaDrawingLayerComponent = (
       }}
       onTouchEnd={(e) => {
         const nativeEvt = e.evt as TouchEvent;
-        if (nativeEvt.touches && nativeEvt.touches.length >= 1) return;
-        // If pinch was active, just reset the flag and skip handleMouseUp
+        const remainingTouches = nativeEvt.touches ? nativeEvt.touches.length : 0;
+
+        // If pinch was active, reset when all fingers are lifted
         if (pinchActiveRef.current) {
-          pinchActiveRef.current = false;
-          return;
+          if (remainingTouches === 0) {
+            pinchActiveRef.current = false;
+          }
+          return; // Always skip handleMouseUp during/after pinch
         }
+
+        // Normal single-finger end
+        if (remainingTouches >= 1) return;
         handleMouseUp(e);
       }}
     >
