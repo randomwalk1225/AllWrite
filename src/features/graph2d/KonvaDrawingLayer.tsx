@@ -674,9 +674,51 @@ const KonvaDrawingLayerComponent = (
   const eraserPathRef = useRef<Array<{ x: number; y: number }>>([]);
   const globalRasterCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Two-finger pinch/pan state — handled inside Konva's own touch handlers
+  // Two-finger pinch/pan — container DOM listener for 2-finger only
   const pinchRef = useRef<{ dist: number; cx: number; cy: number } | null>(null);
-  const pinchActiveRef = useRef(false);
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const container = stage.container();
+    if (!container) return;
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length >= 2) {
+        e.preventDefault(); // prevent browser zoom
+        const rect = container.getBoundingClientRect();
+        const dist = Math.sqrt(
+          (e.touches[0].clientX - e.touches[1].clientX) ** 2 +
+          (e.touches[0].clientY - e.touches[1].clientY) ** 2
+        );
+        const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+        const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
+
+        if (pinchRef.current) {
+          const factor = dist / pinchRef.current.dist;
+          useStore.getState().zoom(factor, cx, cy);
+          const scale = useStore.getState().view.scale;
+          useStore.getState().pan(
+            -(cx - pinchRef.current.cx) / scale,
+            (cy - pinchRef.current.cy) / scale
+          );
+        }
+        pinchRef.current = { dist, cx, cy };
+      }
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        pinchRef.current = null;
+      }
+    };
+
+    // passive: false only on touchmove (need preventDefault for 2-finger)
+    container.addEventListener('touchmove', onTouchMove, { passive: false });
+    container.addEventListener('touchend', onTouchEnd);
+    return () => {
+      container.removeEventListener('touchmove', onTouchMove);
+      container.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [stageRef]);
   const [rasterCanvasVersion, setRasterCanvasVersion] = useState(0);
   const [isErasingRaster, setIsErasingRaster] = useState(false);
   const [eraserCursorPos, setEraserCursorPos] = useState<{
@@ -2296,73 +2338,9 @@ const KonvaDrawingLayerComponent = (
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
-      onTouchStart={(e) => {
-        const evt = e.evt;
-        if (evt.touches.length >= 2) {
-          // Start pinch — cancel current drawing cleanly
-          if (isDrawing) {
-            setIsDrawing(false);
-            currentStrokePoints.current = [];
-            setTempStrokeData(null);
-          }
-          const rect = stageRef.current?.container()?.getBoundingClientRect();
-          if (rect) {
-            const dist = Math.sqrt(
-              (evt.touches[0].clientX - evt.touches[1].clientX) ** 2 +
-              (evt.touches[0].clientY - evt.touches[1].clientY) ** 2
-            );
-            pinchRef.current = {
-              dist,
-              cx: (evt.touches[0].clientX + evt.touches[1].clientX) / 2 - rect.left,
-              cy: (evt.touches[0].clientY + evt.touches[1].clientY) / 2 - rect.top,
-            };
-          }
-          pinchActiveRef.current = true;
-          return;
-        }
-        if (pinchActiveRef.current) return;
-        handleMouseDown(e);
-      }}
-      onTouchMove={(e) => {
-        const evt = e.evt;
-        if (evt.touches.length >= 2 && pinchRef.current) {
-          evt.preventDefault();
-          const rect = stageRef.current?.container()?.getBoundingClientRect();
-          if (!rect) return;
-          const newDist = Math.sqrt(
-            (evt.touches[0].clientX - evt.touches[1].clientX) ** 2 +
-            (evt.touches[0].clientY - evt.touches[1].clientY) ** 2
-          );
-          const cx = (evt.touches[0].clientX + evt.touches[1].clientX) / 2 - rect.left;
-          const cy = (evt.touches[0].clientY + evt.touches[1].clientY) / 2 - rect.top;
-          // Zoom
-          const factor = newDist / pinchRef.current.dist;
-          useStore.getState().zoom(factor, cx, cy);
-          // Pan
-          const scale = useStore.getState().view.scale;
-          useStore.getState().pan(
-            -(cx - pinchRef.current.cx) / scale,
-            (cy - pinchRef.current.cy) / scale
-          );
-          pinchRef.current = { dist: newDist, cx, cy };
-          return;
-        }
-        if (pinchActiveRef.current) return;
-        handleMouseMove(e);
-      }}
-      onTouchEnd={(e) => {
-        const evt = e.evt;
-        if (pinchActiveRef.current) {
-          if (evt.touches.length === 0) {
-            pinchActiveRef.current = false;
-            pinchRef.current = null;
-          }
-          return;
-        }
-        if (evt.touches.length === 0) {
-          handleMouseUp(e);
-        }
-      }}
+      /* Touch: Let Konva convert touch→mouse internally.
+         Two-finger pinch/pan handled by container DOM listener above.
+         No explicit onTouchStart/Move/End needed. */
     >
       <Layer ref={layerRef}>
         {/* Render all images first (so they appear behind everything) */}
